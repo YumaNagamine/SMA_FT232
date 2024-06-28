@@ -354,7 +354,7 @@ def process_GUI(pid,process_share_dict={}):
 def process_camera(pid,process_share_dict={}):
     # process_share_dict['ready'] = False
     # Define a video capture object 
-    cam_num =  2
+    cam_num =  0
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW) # Important!
     cam_flag = cap.isOpened()
     print('Camera State:',cap.isOpened(),cap.get(3),cap.get(4))
@@ -363,7 +363,7 @@ def process_camera(pid,process_share_dict={}):
     width, height = 1280, 720 # 1920,1080# 
     
     # Set FPS
-    cap.set(cv2.CAP_PROP_FPS,120)
+    # cap.set(cv2.CAP_PROP_FPS,120)
     
     # Set the width and height 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width) 
@@ -377,8 +377,8 @@ def process_camera(pid,process_share_dict={}):
         ret, frame = cap.read()
         if ret:
             # Convert the frame to PIL format
-            # image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(frame)
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
 
             # # Resize the image to fit the label 
             # image = image.resize((1280,int(1280*image.height/image.width))) #640, 360
