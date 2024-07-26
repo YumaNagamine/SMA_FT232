@@ -10,6 +10,7 @@ if __name__=='__main__': # Test codes # Main process
 
 import os
 os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
+
 import cv2
 import ttkbootstrap as ttk
 from PIL import Image, ImageTk
@@ -30,7 +31,7 @@ class AsyncVideoSaver:
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
         self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
 
-        print("Saving Video file:",video_file_name," in ")
+        print("Saving Video file:",video_file_name," in ", )
 
     def save_frame_batch(self, frames):
         for frame in frames:
@@ -56,7 +57,7 @@ if __name__ == "__main__":
     print('Running on env: ',sys.version_info)
     
     ## Create CAM obj
-    cam_num =  2
+    cam_num =  0
     
     is_lighting = True
     is_recod_video = True    
@@ -136,6 +137,8 @@ if __name__ == "__main__":
         video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
     elif fourcc == 'XVID':
         video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.avi'
+    elif fourcc == 'H265': # BUG
+        video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
 
     if is_recod_video: saver = AsyncVideoSaver(video_file_name, fourcc, target_fps, resolution)
     frame_id = 0
