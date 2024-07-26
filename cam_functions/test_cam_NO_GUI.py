@@ -8,6 +8,8 @@ if __name__=='__main__': # Test codes # Main process
 
     from lib.GENERALFUNCTIONS import *
 
+import os
+os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 import cv2
 import ttkbootstrap as ttk
 from PIL import Image, ImageTk

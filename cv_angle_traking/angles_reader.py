@@ -1,5 +1,7 @@
 # %%
-import cv2,time,os
+import time,os
+os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd

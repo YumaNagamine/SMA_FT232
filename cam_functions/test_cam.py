@@ -1,6 +1,8 @@
 # Debugged @ 20240711
 # Created by Askar.Liu
 
+import os
+os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 import cv2
 import ttkbootstrap as ttk
 from PIL import Image, ImageTk
