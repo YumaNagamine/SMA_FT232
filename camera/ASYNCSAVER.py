@@ -30,7 +30,7 @@ class AsyncVideoSaver:
         self.frame_queue = deque()
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
         self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
-
+        
         print("Saving Video file:",video_file_name," in ", )
 
     def save_frame_batch(self, frames):
@@ -128,7 +128,6 @@ if __name__ == "__main__":
 
         pass
 
-
     actual_fps = cap.get(cv2.CAP_PROP_FPS)
     print(f"Target FPS: {target_fps}, Actual FPS: {actual_fps}")
     if fourcc == 'MJPG':
@@ -177,8 +176,7 @@ if __name__ == "__main__":
 
         if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
                 break
-
  
-cap.release()
-cv2.destroyAllWindows()
-if is_recod_video: saver.finalize()
+    cap.release()
+    cv2.destroyAllWindows()
+    if is_recod_video: saver.finalize()
