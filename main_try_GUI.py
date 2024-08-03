@@ -385,6 +385,7 @@ def process_camera(pid, process_share_dict={}, video_file_name='output.mp4', fou
             # Save the frame to the video file
             saver.add_frame(frame)
         else:
+            print("Failed to read frame from camera.")
             break
     
     # Release resources
