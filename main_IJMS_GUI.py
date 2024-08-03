@@ -362,7 +362,7 @@ def process_camera(pid,process_share_dict={}):
     cam_name = 'AR0234' # 'OV7251' #  
     
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT
-    cam_flag = cap.isOpened()
+
 
     if cam_name == 'AR0234': # Aptina AR0234
         target_fps = 90
@@ -443,27 +443,32 @@ def process_camera(pid,process_share_dict={}):
     frame_id = 0
     time_cv_st = time.perf_counter()
     
-    # 初始化时间戳队列
+    # 初始化时间戳队列^^^^---^
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
       
-    while cam_flag: # Video Loop // 90 Hz
+    while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
         ret, frame_raw = cap.read()
 
         if ret:
             if is_recod_video: saver.add_frame(frame_raw)
-
+            
             # Convert the frame to PIL format
-            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # frame = cv2.cvtColor(frame_raw, cv2.COLOR_BGR2RGB)
             # frame = Image.fromarray(frame)
-
-            process_share_dict['photo'] = frame_raw
-            process_share_dict['photo_acquired_t'] = time.time()
+-^
+            # process_share_dict['photo'] = frame_raw
+            # process_share_dict['photo_acquired_t'] = time.time()
 
             # Resize the image to fit the label
             # frame = frame.resize((640, 360)) #640, 360 1280,720
+            
+            process_share_dict['photo'] = frame_raw
+            process_share_dict['photo_acquired_t'] = time.time()
+            
             pass
         else: continue
+
         frame_id += 1
         frame_times.append(cur_time)
 
@@ -480,8 +485,8 @@ def process_camera(pid,process_share_dict={}):
         # if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
         #         break
  
-    # cap.release()
-    # cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()
     # if is_recod_video: saver.finalize()
 
     
@@ -508,7 +513,7 @@ if __name__ == '__main__':
             target= process_GUI,name='GUI', args=(1,process_share_dict) )
         
         process_cam = multiprocessing.Process( 
-            target= process_camera, name='CAM', args=(2,process_share_dict))
+            target= process_camera, name='CAM', args=(2,process_share_dict))~
         
         process_cam.start()
         time.sleep(3)
