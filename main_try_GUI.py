@@ -1,7 +1,7 @@
  
 # * Multi Process version
 # Class of SMA single finger robot 
-# Created by Askar. Liu @ 20240729
+# Created by Askar. Liu @ 20231230
 # Modified @20240628
 
 # Based on https://cloud.tencent.com/developer/article/2192324
@@ -12,7 +12,6 @@ os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\
 
 import time,cv2
 from PIL import Image, ImageTk 
-from collections import deque
 
 import tkinter as tk
 from tkinter.messagebox import askyesno
@@ -339,6 +338,8 @@ class exprimentGUI():
             self.root_window.destroy(); sys.exit()
         else: return None
 
+
+
 def process_GUI(pid,process_share_dict={}):
     root = ttk.Window(hdpi=True,scaling=3,themename='darkly')  # darkly sandstone sandstone
     # process_share_dict['root'] = root
@@ -351,140 +352,46 @@ def process_GUI(pid,process_share_dict={}):
     pass
 
 # Static
-def process_camera(pid,process_share_dict={}):
-    # from ads1115.TIADS1115 import HW526Angle as ANGLESENSOR
+def process_camera(pid, process_share_dict={}, video_file_name='output.mp4', fourcc='X264', target_fps=30, resolution=(1280, 720)):
     from camera.ASYNCSAVER import AsyncVideoSaver as videosaver
-    ## Create CAM obj
-    cam_num =  0
-    
-    is_lighting = True
-    is_recod_video = True    
-    cam_name = 'AR0234' # 'OV7251' #  
-    
-    cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT
+    cam_num = 0
+    cap = cv2.VideoCapture(cam_num, cv2.CAP_DSHOW)
     cam_flag = cap.isOpened()
-
-    if cam_name == 'AR0234': # Aptina AR0234
-        target_fps = 90
-        resolution =  (1600,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
-        width, height = resolution
-
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0]) 
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
-        # Set FPS
-        cap.set(cv2.CAP_PROP_FPS,target_fps)
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG')) # 'I420'
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)  # 设置缓冲区大小为2
-        
-        if is_lighting:            # 曝光控制
-            # 设置曝光模式为手动
-            cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # 0.25表示手动模式，0.75表示自动模式
-            cap.set(cv2.CAP_PROP_GAIN, 0)  # 调整增益值，具体范围取决于摄像头
-            cap.set(cv2.CAP_PROP_EXPOSURE, -11)  # 设置曝光值，负值通常表示较短的曝光时间
-        else:            
-            cap.set(cv2.CAP_PROP_GAIN, 0)  # 调整增益值，具体范围取决于摄像头
-            cap.set(cv2.CAP_PROP_EXPOSURE, -3)  # 设置曝光值，负值通常表示较短的曝光时间
-        # Save video
-        fourcc = 'X264'#'MJPG' # 'I420' X264
-
-    elif cam_name == 'OV7251': # Grayscale
-        target_fps = 120
-        resolution =  (640,480) # (640,480)
-        width, height = resolution
-        # cap.set(cv2.CAP_PROP_CONVERT_RGB,0)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0]) 
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
-
-        # Set FPS
-        cap.set(cv2.CAP_PROP_FPS,target_fps)
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG')) # 'I420'
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)  # 设置缓冲区大小为2
-        
-        # # 曝光控制
-        cap.set(cv2.CAP_PROP_GAIN, -0.5)  # 调整增益值，具体范围取决于摄像头
-        cap.set(cv2.CAP_PROP_EXPOSURE, -20)  # 设置曝光值，负值通常表示较短的曝光时间
-
-        fourcc = 'MJPG' 
-
-    elif cam_name == 'Oneplus':
-       
-        target_fps = 480
-        resolution = (1280,720) #q(800,600)# (800,600)#(1920,1200) (1280,720)#
-        width, height = resolution 
-        cap = cv2.VideoCapture(2)
- 
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0]) 
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
-        # Set FPS
-        cap.set(cv2.CAP_PROP_FPS,target_fps)
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG')) # 'I420'
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)  # 设置缓冲区大小为2
-        
-        # 曝光控制
-        cap.set(cv2.CAP_PROP_GAIN, 4)  # 调整增益值，具体范围取决于摄像头
-        cap.set(cv2.CAP_PROP_EXPOSURE, -10)  # 设置曝光值，负值通常表示较短的曝光时间
-
-        fourcc = 'X264'
-
-        pass
-
-    actual_fps = cap.get(cv2.CAP_PROP_FPS)
-    print(f"Target FPS: {target_fps}, Actual FPS: {actual_fps}")
-    if fourcc == 'MJPG':
-        video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.avi'
-    elif fourcc == 'X264':
-        video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
-    elif fourcc == 'XVID':
-        video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.avi'
-    elif fourcc == 'H265': # BUG
-        video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
-
-    if is_recod_video: saver = videosaver(video_file_name, fourcc, target_fps, resolution)
-    frame_id = 0
-    time_cv_st = time.perf_counter()
+    print('Camera State:', cap.isOpened(), cap.get(3), cap.get(4))
     
-    # 初始化时间戳队列
-    frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
-      
-    while cam_flag: # Video Loop // 90 Hz
-        cur_time = time.perf_counter()
-        ret, frame_raw = cap.read()
-
+    width, height = resolution
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*fourcc))
+    
+    if not cam_flag:
+        print("Failed to open camera.")
+        return
+    
+    # Initialize video saver
+    saver = videosaver(video_file_name, fourcc, target_fps, resolution)
+    
+    while cam_flag:
+        ret, frame = cap.read()
         if ret:
-            if is_recod_video: saver.add_frame(frame_raw)
-
             # Convert the frame to PIL format
-            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # frame = Image.fromarray(frame)
-
-            process_share_dict['photo'] = frame_raw
-            process_share_dict['photo_acquired_t'] = time.time()
-
-            # Resize the image to fit the label
-            # frame = frame.resize((640, 360)) #640, 360 1280,720
-            pass
-        else: continue
-        frame_id += 1
-        frame_times.append(cur_time)
-
-        if True: #frame_id % int(actual_fps // 20) == 0:  # 每示两次
- 
-            if frame_id>30: cur_fps = len(frame_times) / (frame_times[-1] - frame_times[0])
-            else : cur_fps = -1
-
-            cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{frame_times[-1] }', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            # cv2.imshow('frame', frame_raw)  # 显示图像
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image = Image.fromarray(image)
             
-
-        # if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
-        #         break
- 
-    # cap.release()
-    # cv2.destroyAllWindows()
-    # if is_recod_video: saver.finalize()
-
+            # Update the shared dictionary with the new image
+            process_share_dict['photo'] = image
+            process_share_dict['photo_acquired_t'] = time.time()
+            
+            # Save the frame to the video file
+            saver.add_frame(frame)
+        else:
+            break
     
+    # Release resources
+    cap.release()
+    saver.finalize()
+    print("Camera process finished.")
+
 
 if __name__ == '__main__':
     # sys.stdout = Logger()
@@ -496,17 +403,12 @@ if __name__ == '__main__':
  
     # """ tk界面置顶 """
     # root.attributes("-topmost", 1)
-    print('Running on env: ',sys.version_info)
-
     with multiprocessing.Manager() as process_manager:
-
-        process_share_dict = process_manager.dict() # inital
-
-        process_share_dict['photo'] = []
+        process_share_dict = process_manager.dict()
+        process_share_dict['photo']=[]
 
         process_root = multiprocessing.Process(
-            target= process_GUI,name='GUI', args=(1,process_share_dict) )
-        
+             target= process_GUI,name='GUI', args=(1,process_share_dict) )
         process_cam = multiprocessing.Process( 
             target= process_camera, name='CAM', args=(2,process_share_dict))
         
