@@ -31,7 +31,7 @@ class AsyncVideoSaver:
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
         self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
         
-        print("Saving Video file:",video_file_name," in ", )
+        # print("Saving Video file:",video_file_name," in ", )
 
     def save_frame_batch(self, frames):
         for frame in frames:
