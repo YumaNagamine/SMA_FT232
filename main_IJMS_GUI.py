@@ -13,6 +13,7 @@ os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\
 import time,cv2
 from PIL import Image, ImageTk 
 from collections import deque
+import copy
 
 import tkinter as tk
 from tkinter.messagebox import askyesno
@@ -233,9 +234,9 @@ class exprimentGUI():
             self.variable_fps.set('FPS: '+str(int(1/_dt)))
             return []
 
-        except  Exception as err:
-            print('Video frame load from thread manager failed:\n ')
-            print('Due to:',err)
+        except Exception as err:
+            print('Video frame load from thread manager failed: ')
+            print('\tDue to:',err)
             print('Tring again ... ...')
             self.root_window.after(1000,self.refresh_img)
 
@@ -352,8 +353,8 @@ def process_GUI(pid,process_share_dict={}):
 
 # Static
 def process_camera(pid,process_share_dict={}):
-    # from ads1115.TIADS1115 import HW526Angle as ANGLESENSOR
-    from camera.ASYNCSAVER import AsyncVideoSaver as videosaver
+    from camera.ASYNCSAVER import AsyncVideoSaver as VideoSaver
+    from cv_angle_traking.angles_reader import AngleTracker
     ## Create CAM obj
     cam_num =  0
     
@@ -363,7 +364,7 @@ def process_camera(pid,process_share_dict={}):
     
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT
 
-
+    
     if cam_name == 'AR0234': # Aptina AR0234
         target_fps = 90
         resolution =  (1600,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
@@ -439,55 +440,72 @@ def process_camera(pid,process_share_dict={}):
     elif fourcc == 'H265': # BUG
         video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
 
-    if is_recod_video: saver = videosaver(video_file_name, fourcc, target_fps, resolution)
+    if is_recod_video: saver = VideoSaver(video_file_name, fourcc, target_fps, resolution)
     frame_id = 0
-    time_cv_st = time.perf_counter()
+    # time_cv_st = time.perf_counter()
     
     # 初始化时间戳队列^^^^---^
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
-      
+
+
+
     while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
-        ret, frame_raw = cap.read()
+        ret, frame_raw = cap.read()   
+        
 
         if ret:
+            if frame_id == 0: tracker.acquire_marker_color(frame_raw,cv_choose_wd_name,tracker)
+            
             if is_recod_video: saver.add_frame(frame_raw)
-            
-            # Convert the frame to PIL format
-            # frame = cv2.cvtColor(frame_raw, cv2.COLOR_BGR2RGB)
-            # frame = Image.fromarray(frame)
--^
-            # process_share_dict['photo'] = frame_raw
-            # process_share_dict['photo_acquired_t'] = time.time()
+            frame_id += 1
+            frame_times.append(cur_time)
 
-            # Resize the image to fit the label
-            # frame = frame.resize((640, 360)) #640, 360 1280,720
-            
-            process_share_dict['photo'] = frame_raw
-            process_share_dict['photo_acquired_t'] = time.time()
-            
-            pass
+            if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
+                if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
+                else : cur_fps = -1
+                cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{cur_time}',
+                             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
+                cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}',
+                             (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
+            if frame_id % int(actual_fps // 20) == 0:  # 每S两次
+                # deepcopy. frame_raw(800,600) 
+                # frame_raw_copied = frame_raw.deepcopy()
+                
+                copied_frame = copy.deepcopy(frame_raw)
+                # cv2.resize(frame_raw.copy(), (800,600))
+
+                copied_frame = cv2.resize(copied_frame,(720,480))
+                
+                # image_to_send = Image.fromarray(cv2.cvtColor(frame_raw.copy(), cv2.COLOR_BGR2RGB))
+                image_to_send = Image.fromarray(cv2.cvtColor(copied_frame, cv2.COLOR_BGR2RGB))
+                
+                process_share_dict['photo'] = image_to_send
+                process_share_dict['photo_acquired_t'] = time.time()
+
+                if True: #read angles
+                    tracker.acquire_marker_color(frame_raw)
+                    frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_raw, False)
+                    
+                    print(angle_0)
+                    print(angle_1)
+                    print(angle_2)
+
+
+                    process_share_dict['angles'] = [angle_0, angle_1, angle_2]
+
+                # process_share_dict['angles']
+            pass        
         else: continue
 
-        frame_id += 1
-        frame_times.append(cur_time)
-
-        if True: #frame_id % int(actual_fps // 20) == 0:  # 每示两次
- 
-            if frame_id>30: cur_fps = len(frame_times) / (frame_times[-1] - frame_times[0])
-            else : cur_fps = -1
-
-            cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{frame_times[-1] }', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-            # cv2.imshow('frame', frame_raw)  # 显示图像
-            
-
-        # if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
-        #         break
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
+            break
  
     cap.release()
     cv2.destroyAllWindows()
-    # if is_recod_video: saver.finalize()
+    if is_recod_video: saver.finalize()
 
     
 
@@ -508,12 +526,14 @@ if __name__ == '__main__':
         process_share_dict = process_manager.dict() # inital
 
         process_share_dict['photo'] = []
+        process_share_dict['angles']=[]
 
         process_root = multiprocessing.Process(
             target= process_GUI,name='GUI', args=(1,process_share_dict) )
         
         process_cam = multiprocessing.Process( 
-            target= process_camera, name='CAM', args=(2,process_share_dict))~
+            target= process_camera, name='CAM', args=(2,process_share_dict))
+        
         
         process_cam.start()
         time.sleep(3)
