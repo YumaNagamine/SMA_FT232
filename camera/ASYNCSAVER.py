@@ -28,10 +28,16 @@ class AsyncVideoSaver:
         self.frame_size = frame_size
         self.maxlen = 30
         self.frame_queue = deque()
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
-        self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
-        
-        # print("Saving Video file:",video_file_name," in ", )
+        try:
+            self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+            self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
+            print("Saving Video file:",filename," in ", )
+        except Exception as err :
+            print('cv2.VideoWeiter creation failed!!')
+            print('Err occurs:',err)
+            exit()
+
+
 
     def save_frame_batch(self, frames):
         for frame in frames:
