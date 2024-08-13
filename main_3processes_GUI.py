@@ -354,7 +354,6 @@ def process_GUI(pid,process_share_dict={}):
 # Static
 def process_camera(pid,process_share_dict={}):
     from camera.ASYNCSAVER import AsyncVideoSaver as VideoSaver
-    from cv_angle_traking.angles_reader import AngleTracker
     ## Create CAM obj
     cam_num =  0
     
@@ -444,19 +443,18 @@ def process_camera(pid,process_share_dict={}):
     frame_id = 0
     # time_cv_st = time.perf_counter()
     
+    process_share_dict['video_name'] = video_file_name  
+
     # 初始化时间戳队列^^^^---^
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
 
-    tracker = AngleTracker(video_name=video_file_name, denoising_mode='monocolor')
 
     while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
         ret, frame_raw = cap.read()   
         
 
-        if ret:
-            if frame_id == 0: tracker.acquire_marker_color(frame_raw,cv_choose_wd_name,tracker)
-            
+        if ret:            
             if is_recod_video: saver.add_frame(frame_raw)
             frame_id += 1
             frame_times.append(cur_time)
@@ -485,16 +483,7 @@ def process_camera(pid,process_share_dict={}):
                 process_share_dict['photo'] = image_to_send
                 process_share_dict['photo_acquired_t'] = time.time()
 
-                if True: #read angles
-                    tracker.acquire_marker_color(frame_raw)
-                    frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_raw, False)
-                    
-                    print(angle_0)
-                    print(angle_1)
-                    print(angle_2)
 
-
-                    process_share_dict['angles'] = [angle_0, angle_1, angle_2]
 
                 # process_share_dict['angles']
             pass        
@@ -507,7 +496,43 @@ def process_camera(pid,process_share_dict={}):
     cv2.destroyAllWindows()
     if is_recod_video: saver.finalize()
 
+def process_angles(pid,process_share_dict={}):
+    from cv_angle_traking.angles_reader_copy import AngleTracker
+    video_file_name = process_share_dict['video_name']
+    colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
+
+    tracker = AngleTracker(video_name=video_file_name, denoising_mode='monocolor')
+    firstframe = 0
+    previous_frame = []
     
+    enable_gpu_acc = True
+    if not cv2.cuda.getCudaEnabledDeviceCount():
+        print("Cuda accelaration is not supported, working on CPU")
+        enable_gpu_acc = False
+
+    cv_preview_wd_name = 'Video Preview'
+    cv_choose_wd_name = 'Choose'
+    
+    cv2.namedWindow(cv_preview_wd_name, cv2.WINDOW_GUI_EXPANDED)
+    cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
+
+ #read angles
+    while True: 
+        frame = process_share_dict['photo']
+
+        if firstframe == 0: #process for 1st frame
+            tracker.acquire_marker_color(frame,cv_choose_wd_name)
+            firstframe += 1
+        
+        if not frame == previous_frame:
+
+            noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False, colors)
+
+            previous_frame = frame
+
+            process_share_dict['angles'] = [angle_0, angle_1, angle_2]
+            print(process_share_dict['angles'])
+
 
 if __name__ == '__main__':
     # sys.stdout = Logger()
@@ -534,6 +559,8 @@ if __name__ == '__main__':
         process_cam = multiprocessing.Process( 
             target= process_camera, name='CAM', args=(2,process_share_dict))
         
+        process_cam = multiprocessing.Process( 
+            target= process_angles, name='ANGLES', args=(3,process_share_dict))
         
         process_cam.start()
         time.sleep(3)
