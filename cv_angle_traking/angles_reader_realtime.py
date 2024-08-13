@@ -172,7 +172,7 @@ class AngleTracker(object): # TODO
                 
         return markers_masks
 
-    def acquire_marker_color(self,frame, cv_choose_wd_name): #TODO
+    def acquire_marker_color(self,frame, cv_choose_wd_name,tracker): #TODO
         marker_rangers_old = self.marker_rangers
         marker_rangers = []
 
