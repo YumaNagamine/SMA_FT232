@@ -502,7 +502,7 @@ def process_angles(pid,process_share_dict={}):
     colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
 
     tracker = AngleTracker(video_name=video_file_name, denoising_mode='monocolor')
-    firstframe = 0
+    whetherfirstframe = 0
     previous_frame = []
     
     enable_gpu_acc = True
@@ -520,9 +520,9 @@ def process_angles(pid,process_share_dict={}):
     while True: 
         frame = process_share_dict['photo']
 
-        if firstframe == 0: #process for 1st frame
+        if whetherfirstframe == 0: #process for 1st frame
             tracker.acquire_marker_color(frame,cv_choose_wd_name)
-            firstframe += 1
+            whetherfirstframe += 1
         
         if not frame == previous_frame:
 
