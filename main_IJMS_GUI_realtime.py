@@ -476,6 +476,11 @@ def process_camera(pid,process_share_dict={}):
             frame_id += 1
             frame_times.append(cur_time)
 
+            if True: #read angles
+                noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_raw, False, colors)
+                process_share_dict['angles'] = [angle_0, angle_1, angle_2]
+                print(process_share_dict['angles'])
+
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
                 if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
                 else : cur_fps = -1
@@ -500,11 +505,15 @@ def process_camera(pid,process_share_dict={}):
                 process_share_dict['photo'] = image_to_send
                 process_share_dict['photo_acquired_t'] = time.time()
 
+<<<<<<< HEAD
                 if True: #read angles
                     frame_for_anglereader = copy.deepcopy(frame_raw)
                     noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_for_anglereader, False, colors)
                     process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                     print(process_share_dict['angles'])
+=======
+
+>>>>>>> 5a542fb8b36c79bb59dc672d2d0b3c5315e47a4d
             pass        
         else: 
             print(ret, ret0)
