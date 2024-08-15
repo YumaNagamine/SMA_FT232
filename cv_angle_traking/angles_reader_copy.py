@@ -13,7 +13,7 @@ class AngleTracker(object): # TODO
         # colors_name = ["blue", "pink", "green", "yellow"]
         if video_name==[]:
             print("Empty video name, exiting...");exit()
-             
+        DATA_FOLDER = './' 
         self.video_name = video_name
         self.video_path = DATA_FOLDER + video_name #"../IMG_7102.MOV"
         self.output_folder_path = DATA_FOLDER + self.video_name.split('.')[0] +'/'# "../output/video"
