@@ -456,15 +456,14 @@ def process_camera(pid,process_share_dict={}):
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
 
     tracker = AngleTracker(video_name = video_file_name,denoising_mode='monocolor')
-    out = cv2.VideoWriter(tracker.video_path, cv2.VideoWriter_forcc(fourcc),
-                           cur_fps, resolution)
-    captracker = cap.VideoCapture(tracker.video_path)
+    out = cv2.VideoWriter(tracker.output_folder_path, cv2.VideoWriter_fourcc(*fourcc),
+                           actual_fps, resolution)
+    captracker = cv2.VideoCapture(tracker.video_path)
 
     while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
-        ret, frame_raw = cap.read()   
+        ret, frame_raw = cap.read()
         ret0, frame_for_anglereader = captracker.read()
-
         if ret and ret0:
             out.write(frame_for_anglereader)
             
@@ -475,11 +474,6 @@ def process_camera(pid,process_share_dict={}):
             if is_recod_video: saver.add_frame(frame_raw)
             frame_id += 1
             frame_times.append(cur_time)
-
-            if True: #read angles
-                noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_raw, False, colors)
-                process_share_dict['angles'] = [angle_0, angle_1, angle_2]
-                print(process_share_dict['angles'])
 
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
                 if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
@@ -505,18 +499,15 @@ def process_camera(pid,process_share_dict={}):
                 process_share_dict['photo'] = image_to_send
                 process_share_dict['photo_acquired_t'] = time.time()
 
-<<<<<<< HEAD
                 if True: #read angles
                     frame_for_anglereader = copy.deepcopy(frame_raw)
                     noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_for_anglereader, False, colors)
                     process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                     print(process_share_dict['angles'])
-=======
 
->>>>>>> 5a542fb8b36c79bb59dc672d2d0b3c5315e47a4d
             pass        
         else: 
-            print(ret, ret0)
+            # print(ret, ret0)
             continue
         
 
