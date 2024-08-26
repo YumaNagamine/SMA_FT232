@@ -353,8 +353,8 @@ def process_GUI(pid,process_share_dict={}):
 
 # Static
 def process_camera(pid,process_share_dict={}):
-    from camera.ASYNCSAVER import AsyncVideoSaver as VideoSaver
-    from cv_angle_traking.angles_reader_copy import AngleTracker
+    from camera.ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker as VideoSaver, AngleTracker
+    # from cv_angle_traking.angles_reader_copy import AngleTracker
     ## Create CAM obj
     cam_num =  0
     
@@ -440,11 +440,10 @@ def process_camera(pid,process_share_dict={}):
     elif fourcc == 'H265': # BUG
         video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
 
-    if is_recod_video: saver = VideoSaver(video_file_name,fourcc, target_fps, resolution)
+    if is_recod_video: saver = AngleTracker(video_file_name,fourcc, target_fps, resolution, 'monocolor')
     
     frame_id = 0
     whether_firstframe = True
-    # time_cv_st = time.perf_counter()
     
     # 初始化时间戳队列^^^^---^
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
@@ -455,25 +454,27 @@ def process_camera(pid,process_share_dict={}):
     cv2.namedWindow(cv_preview_wd_name, cv2.WINDOW_GUI_EXPANDED)
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
 
-    tracker = AngleTracker(video_name = video_file_name,denoising_mode='monocolor')
-    out = cv2.VideoWriter(tracker.output_folder_path, cv2.VideoWriter_fourcc(*fourcc),
-                           actual_fps, resolution)
-    captracker = cv2.VideoCapture(tracker.video_path)
+
 
     while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
-        ret, frame_raw = cap.read()
-        ret0, frame_for_anglereader = captracker.read()
-        if ret and ret0:
-            out.write(frame_for_anglereader)
-            
+        ret, frame_raw = cap.read()   
+
+        if ret
+
+            if is_recod_video: saver.add_frame(frame_raw)
+
             if whether_firstframe: 
-                tracker.acquire_marker_color(frame_for_anglereader,cv_choose_wd_name,tracker)
+                saver.acquire_marker_color(frame_for_anglereader, cv_choose_wd_name, saver)
                 whether_firstframe = False
             
-            if is_recod_video: saver.add_frame(frame_raw)
             frame_id += 1
             frame_times.append(cur_time)
+
+            if True: #read angles
+                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(frame_raw, False, colors)
+                process_share_dict['angles'] = [angle_0, angle_1, angle_2]
+                print(process_share_dict['angles'])
 
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
                 if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
@@ -498,7 +499,6 @@ def process_camera(pid,process_share_dict={}):
                 
                 process_share_dict['photo'] = image_to_send
                 process_share_dict['photo_acquired_t'] = time.time()
-
                 if True: #read angles
                     frame_for_anglereader = copy.deepcopy(frame_raw)
                     noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_for_anglereader, False, colors)
@@ -507,7 +507,7 @@ def process_camera(pid,process_share_dict={}):
 
             pass        
         else: 
-            # print(ret, ret0)
+            print(ret, ret0)
             continue
         
 
