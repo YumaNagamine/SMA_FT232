@@ -353,7 +353,7 @@ def process_GUI(pid,process_share_dict={}):
 
 # Static
 def process_camera(pid,process_share_dict={}):
-    from camera.ASYNCSAVER import AsyncVideoSaver as VideoSaver
+    from camera.ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver as VideoSaver
     from cv_angle_traking.angles_reader_copy import AngleTracker
     ## Create CAM obj
     cam_num =  0
