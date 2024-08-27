@@ -28,7 +28,7 @@ class AsyncVideoSaver(object):
         self.frame_size = frame_size
         self.maxlen = 30
         self.frame_queue = deque()
-        self.threshold_area_size = [10, 10, 10, 10]
+
         try:
             self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
             self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
@@ -70,7 +70,8 @@ class AngleTracker(AsyncVideoSaver):
         self.denoising_mode = denoising_mode# 'monocolor'
         self.cv_preview_wd_name = "Video Preview"
         self.cv_choose_wd_name = "Choose"
-        
+        self.threshold_area_size = [10, 10, 10, 10]
+        self.colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]        
 
         if self.color_mode ==0: # Lab
             self.maker_tolerance_L = 20#int(0.08 * 255)
@@ -197,7 +198,7 @@ class AngleTracker(AsyncVideoSaver):
 
         cv2.namedWindow(self.cv_choose_wd_name, cv2.WINDOW_GUI_EXPANDED)
         cv2.setMouseCallback(self.cv_choose_wd_name, self.mouse_event)
-
+    
         if self.color_mode == 0:
             frame_to_segment = cv2.cvtColor(self.frame, cv2.COLOR_RGB2Lab)
         else: frame_to_segment = self.frame
