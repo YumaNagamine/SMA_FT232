@@ -460,19 +460,19 @@ def process_camera(pid,process_share_dict={}):
         cur_time = time.perf_counter()
         ret, frame_raw = cap.read()   
 
-        if ret
+        if ret:
 
             if is_recod_video: saver.add_frame(frame_raw)
 
             if whether_firstframe: 
-                saver.acquire_marker_color(frame_for_anglereader, cv_choose_wd_name, saver)
+                saver.acquire_marker_color()
                 whether_firstframe = False
             
             frame_id += 1
             frame_times.append(cur_time)
 
             if True: #read angles
-                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(frame_raw, False, colors)
+                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(False)
                 process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                 print(process_share_dict['angles'])
 
@@ -499,17 +499,10 @@ def process_camera(pid,process_share_dict={}):
                 
                 process_share_dict['photo'] = image_to_send
                 process_share_dict['photo_acquired_t'] = time.time()
-                if True: #read angles
-                    frame_for_anglereader = copy.deepcopy(frame_raw)
-                    noneedframe, angle_0, angle_1, angle_2  = tracker.extract_angle(frame_for_anglereader, False, colors)
-                    process_share_dict['angles'] = [angle_0, angle_1, angle_2]
-                    print(process_share_dict['angles'])
-
+                
+                
             pass        
-        else: 
-            print(ret, ret0)
-            continue
-        
+                 
 
         if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
             break
