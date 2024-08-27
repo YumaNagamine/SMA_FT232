@@ -28,6 +28,7 @@ class AsyncVideoSaver(object):
         self.frame_size = frame_size
         self.maxlen = 30
         self.frame_queue = deque()
+        self.threshold_area_size = [10, 10, 10, 10]
         try:
             self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
             self.out = cv2.VideoWriter(self.filename, cv2.VideoWriter_fourcc(*fourcc), self.fps, self.frame_size)
@@ -253,6 +254,122 @@ class AngleTracker(AsyncVideoSaver):
         cv2.destroyWindow("Choose")
 
         return marker_rangers 
+
+    def extract_angle(self, swap):
+        # Convert the input frame to the CIELAB color space
+
+        cielab_frame = cv2.cvtColor(self.frame, cv2.COLOR_RGB2Lab)
+
+        # Segment markers by color in the CIELAB color space
+        [marker_blue, marker_pink, marker_green, marker_yellow] = self.segment_marker_by_color(cielab_frame)
+        # marker_blue, marker_pink, marker_green, marker_yellow = segment_marker_by_color(cielab_frame)
+
+
+        # Create a stack of masks for each color marker
+        masks = np.stack([marker_blue, marker_pink, marker_green, marker_yellow], axis=0)
+
+        # Define color names for visualization
+        colors_name = ["blue", "pink", "green", "yellow"]
+
+        # Initialize a list to store points per frame
+        makerset_per_frame = []
+
+        # Set the line padding value
+        line_pad = 5  # Adjust this value as needed
+
+        # Initialize the direction vector for the first line
+        direction_vector_0_1 = None
+        
+        if 1:
+            # Iterate over each color marker
+            for mask, thr, color, color_name, direction_vector in zip(masks, self.threshold_area_size, self.colors, colors_name, [direction_vector_0_1, None, None, None]        ):
+                # Convert the mask to uint8
+                
+                mask = np.uint8(mask) # True/False -> 0/1
+        
+                # Find connected components in the mask
+                num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
+
+                # Filter regions based on area threshold
+                filtered_regions = [index for index, stat in enumerate(stats[1:]) if stat[4] >= thr]
+                
+                    
+
+                # Initialize a list to store points per mask
+                point_per_mask = []
+
+                # If missed point, go next mask
+                if len(filtered_regions) < 2: 
+                    point_per_mask.extend([(-1,-1),(-1,-1)]) 
+                    makerset_per_frame.append(point_per_mask)
+                    continue
+
+                # Iterate over filtered regions in the mask
+                for idx, index in enumerate(filtered_regions):
+                    # Access region properties from the stats array
+                    left, top, width, height, area = stats[index + 1]
+
+                    # Calculate the centroid
+                    centroid_x, centroid_y = int(left + width / 2), int(top + height / 2)
+
+                    # Append the centroid to the list of points for the mask
+                    point_per_mask.append((centroid_x, centroid_y))
+                
+                # Visualize circles for each point in the mask
+                for idx, point in enumerate(point_per_mask):
+                    cv2.circle(self.frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
+
+                # Visualize circles for each point with increased radius
+                for idx, point in enumerate(point_per_mask):
+                    cv2.circle(self.frame, (point[0], point[1]), radius=idx * 10 + 10, color=color, thickness=3)
+
+                if len(point_per_mask) <2:
+                    continue
+                # If direction vector is not initialized, calculate it from the first two points
+                if direction_vector is None:
+                    direction_vector = self.calculate_vector(point_per_mask[1], point_per_mask[0])
+
+                # Calculate points for the line based on the direction vector and line padding
+                point1 = (int(point_per_mask[1][0] - line_pad * direction_vector[0]),
+                        int(point_per_mask[1][1] - line_pad * direction_vector[1]), )
+                
+                point2 = (int(point_per_mask[0][0] + line_pad * direction_vector[0]),
+                        int(point_per_mask[0][1] + line_pad * direction_vector[1]), )
+
+                # Visualize the line connecting the two points
+                cv2.line(self.frame, point1, point2, color, 3)
+
+                # Append the points for the current mask to the list of points per frame
+                makerset_per_frame.append(point_per_mask)
+
+                # if len(filtered_regions)<2:
+                #     print("filtered_regions: ",filtered_regions)
+                #     print("num_labels: ",num_labels)
+                #     print("point_per_mask: ",point_per_mask)
+                #     # print("labels: ",labels)                    
+                #     return frame,[],[],[]
+                # else: 
+                #     print("filtered_regions: ",filtered_regions)
+                #     print("point_per_mask: ",point_per_mask)
+
+            # Calculate angles between consecutive lines
+            # print(makerset_per_frame)
+            angle_0 = self.calculate_angle(makerset_per_frame[0], makerset_per_frame[1])
+            angle_1 = self.calculate_angle(makerset_per_frame[1], makerset_per_frame[2])
+            angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3])
+
+            _text_pos_x = 100
+            # Add text annotations to the frame with calculated angles
+            self.frame = self.add_text_to_frame(self.frame, "ANGLE 0: {}".format((angle_0)), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
+            self.frame = self.add_text_to_frame(self.frame, "ANGLE 1: {}".format((angle_1)), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
+            self.frame = self.add_text_to_frame(self.frame, "ANGLE 2: {}".format((angle_2)), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+
+        # except Exception as err:
+        #     print(color_name,' Failed!:',err)
+        #     return frame,[],[],[]
+
+
+        return self.frame, angle_0, angle_1, angle_2
 
     def _disp_marker_pos(self,x,y):
         _meassage = str(self._point_counter) + ":%d,%d" % (x, y) # _point_counter
