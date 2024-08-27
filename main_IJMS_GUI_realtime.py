@@ -449,8 +449,8 @@ def process_camera(pid,process_share_dict={}):
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
     
     cv_preview_wd_name = 'Video Preview'
-    cv_choose_wd_name = 'Choose'
-    colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
+    # cv_choose_wd_name = 'Choose'
+    # colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
     cv2.namedWindow(cv_preview_wd_name, cv2.WINDOW_GUI_EXPANDED)
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
 
@@ -463,7 +463,7 @@ def process_camera(pid,process_share_dict={}):
         if ret:
 
             if is_recod_video: saver.add_frame(frame_raw)
-
+            
             if whether_firstframe: 
                 saver.acquire_marker_color()
                 whether_firstframe = False
