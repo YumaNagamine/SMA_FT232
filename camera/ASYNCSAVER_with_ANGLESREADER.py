@@ -63,7 +63,7 @@ class AsyncVideoSaver(object):
 
 class AngleTracker(AsyncVideoSaver):
     def __init__(self, filename, fourcc, fps, frame_size, denoising_mode='monocolor'):
-        super().__init__(self, filename, fourcc, fps, frame_size)
+        super().__init__(filename, fourcc, fps, frame_size)
 
         self.color_mode = 0 # 0: Lab,1: Rgb
         self.num_maker_sets = 4
@@ -219,7 +219,7 @@ class AngleTracker(AsyncVideoSaver):
 
         cv2.putText(self.frame,_meassage, (40, 50), cv2.FONT_HERSHEY_DUPLEX,
                     1.8, (255, 255,255), thickness =2)
-        cv2.putText(self.frame 'Press Esc to continue on point extraction', (40, 80), cv2.FONT_HERSHEY_DUPLEX,
+        cv2.putText(self.frame, 'Press Esc to continue on point extraction', (40, 80), cv2.FONT_HERSHEY_DUPLEX,
                     1, (255, 255,255), thickness =1)
         while not self.frame is None:
             cv2.imshow('Choose', self.frame)

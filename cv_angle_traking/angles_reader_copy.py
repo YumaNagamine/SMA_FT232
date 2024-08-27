@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-
 class AngleTracker(object): # TODO
    
     def __init__(self, video_name=[],denoising_mode='monocolor'): # TODO
