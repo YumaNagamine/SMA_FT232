@@ -68,7 +68,6 @@ class AngleTracker(AsyncVideoSaver):
         self.color_mode = 0 # 0: Lab,1: Rgb
         self.num_maker_sets = 4
         self.denoising_mode = denoising_mode# 'monocolor'
-        self.cv_preview_wd_name = "Video Preview"
         self.cv_choose_wd_name = "Choose"
         self.threshold_area_size = [10, 10, 10, 10]
         self.colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]        
@@ -381,7 +380,7 @@ class AngleTracker(AsyncVideoSaver):
         return self.frame
 
     def mouse_event(self, event, x, y, flags, param):
-
+        self.enable_maker_pos_acquirement = False
         if event == cv2.EVENT_LBUTTONDOWN:
             if self.enable_maker_pos_acquirement:
                 self._disp_marker_pos(x, y)
