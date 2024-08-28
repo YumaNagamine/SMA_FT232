@@ -192,9 +192,8 @@ class AngleTracker(AsyncVideoSaver):
     def acquire_marker_color(self): #TODO
         marker_rangers_old = self.marker_rangers
         marker_rangers = []
-
         num_marker_sets = self.num_maker_sets
-
+        
         cv2.namedWindow(self.cv_choose_wd_name, cv2.WINDOW_GUI_EXPANDED)
         cv2.setMouseCallback(self.cv_choose_wd_name, self.mouse_event)
     
@@ -380,7 +379,6 @@ class AngleTracker(AsyncVideoSaver):
         return self.frame
 
     def mouse_event(self, event, x, y, flags, param):
-        self.enable_maker_pos_acquirement = False
         if event == cv2.EVENT_LBUTTONDOWN:
             if self.enable_maker_pos_acquirement:
                 self._disp_marker_pos(x, y)
@@ -396,8 +394,7 @@ class AngleTracker(AsyncVideoSaver):
             cv2.putText(self.frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), thickness = 1)
             self.enable_maker_pos_acquirement = True
             pass
-        
-
+    
         cv2.imshow("Choose", self.frame)
         return []
 
