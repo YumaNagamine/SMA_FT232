@@ -467,7 +467,7 @@ def process_camera(pid,process_share_dict={}):
             if whether_firstframe: 
                 saver.acquire_marker_color()
                 whether_firstframe = False
-            
+
             frame_id += 1
             frame_times.append(cur_time)
 
