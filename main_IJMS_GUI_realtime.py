@@ -1,4 +1,3 @@
-# committest 
 # * Multi Process version
 # Class of SMA single finger robot 
 # Created by Askar. Liu @ 20240729
