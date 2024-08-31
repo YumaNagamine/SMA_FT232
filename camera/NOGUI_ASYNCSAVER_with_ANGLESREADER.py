@@ -87,6 +87,15 @@ class AngleTracker(AsyncVideoSaver):
                        [ [180,210],[55,85],[120,180]], # Marker C
                        [ [150,235],[80,90],[100,120]], # Marker D 
                         ]
+        self._point_counter = 0
+        self.maker_position_frame0 = []
+        for _ in range(self.num_maker_sets):self.maker_position_frame0.append([0,0])
+
+        self.enable_maker_pos_acquirement = False
+        self.load_point_pos()
+
+        pass
+
     def add_text_to_frame(self,frame, text, position=(30, 30), font=cv2.FONT_HERSHEY_DUPLEX, font_scale=0.2, color=(0, 255, 0), thickness=2):
            # Add text overlay into video frame
         """
@@ -398,6 +407,61 @@ class AngleTracker(AsyncVideoSaver):
     
         cv2.imshow("Choose", self.frame)
         return []
+    
+    def load_point_pos(self,):
+        import json
+        try:
+            # JSON到字典转化
+            _pos_file = open(self.video_pos_file_url, 'r')
+            _pos_data = json.load(_pos_file)
+            print(type(_pos_data),_pos_data)
+            self.maker_position_frame0 = _pos_data['maker_position_frame0'] 
+            if len(_pos_data) == 0: raise Exception("")        
+            else: print("\tSuccessfully load calibration data!:",self.maker_position_frame0,"\n")
+
+        except Exception as Err: 
+            print("\tErr occurs when loading maker_position_frame0, Please calibrate angle sensor: \n",Err)
+            # self.calibrateRange()
+        pass
+
+    # def store_point_pos(self,):
+    #     # save position of markers in video to json
+    #     _data = self.maker_position_frame0
+    #     _data = {'maker_position_frame0':_data}
+    #     info_json = json.dumps(_data,sort_keys=True, indent=4, separators=(',', ': '))
+
+    #     f = open(self.video_pos_file_url, 'w')
+    #     f.write(info_json)
+    #     # exit()
+    #     pass
+
+    # def store_data(self,measure,set_fps=30):
+    #     ## Store csv - raw_angles
+    #     df_angle = pd.DataFrame(data=measure, columns=["frame", "angle_0", "angle_1", "angle_2"])
+    #     df_angle["time"] = df_angle["frame"] / set_fps
+
+    #     df_angle.to_csv(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted.csv"), 
+    #                     index=False)
+
+    #     np_data = np.array(measure)[:,::-1]
+    #     print("measure:",type(measure))
+    #     print(type(np_data),np_data)
+    #     saveFigure(np_data,f"{video_name.split('.')[0]}_extracted.csv",["angle_2", "angle_1", "angle_0","frame"],
+    #                show_img=False, figure_mode='Single' )
+    #     # saveData()
+
+    #     pass
+
+    # def store_video(self,frames, fps):
+    #     self.output_video_url = os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted.mp4") 
+    #     # Function to store the video with updated frames
+    #     fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
+    #     # fourcc = cv2.VideoWriter_fourcc(*'x264')# # 'avc1' # Mac
+    #     print('fourcc built')
+    #     height, width, _ = frames[0].shape
+    #     out = cv2.VideoWriter(self.output_video_url, fourcc, fps, (width, height))
+    #     for frame in frames:out.write(frame)
+    #     out.release()
 
 
 
@@ -454,7 +518,7 @@ if __name__ == "__main__":
 
         fourcc = 'MJPG' 
 
-    elif cam_name == 'Oneplus':
+    elif cam_name == 'Oneplus': 
        
         target_fps = 480
         resolution = (1280,720) #q(800,600)# (800,600)#(1920,1200) (1280,720)#
@@ -522,9 +586,10 @@ if __name__ == "__main__":
                 print(angles)
                 # process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                 # print(process_share_dict['angles'])
+                cv2.imshow('Video Preview', saver.frame)
 
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
-                if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
+                if frame_id > 45: cuqr_fps = 30 / (cur_time - frame_times[0])
                 else : cur_fps = -1
                 cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{cur_time}',
                              (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
