@@ -196,6 +196,7 @@ class AngleTracker(AsyncVideoSaver):
         
         cv2.namedWindow(self.cv_choose_wd_name, cv2.WINDOW_GUI_EXPANDED)
         cv2.setMouseCallback(self.cv_choose_wd_name, self.mouse_event)
+        cv2.waitKey(0)
     
         if self.color_mode == 0:
             frame_to_segment = cv2.cvtColor(self.frame, cv2.COLOR_RGB2Lab)
