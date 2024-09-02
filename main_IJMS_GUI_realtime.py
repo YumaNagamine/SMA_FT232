@@ -352,7 +352,7 @@ def process_GUI(pid,process_share_dict={}):
 
 # Static
 def process_camera(pid,process_share_dict={}):
-    from camera.ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker as VideoSaver, AngleTracker
+    from camera.NOGUI_ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker as VideoSaver, AngleTracker
     # from cv_angle_traking.angles_reader_copy import AngleTracker
     ## Create CAM obj
     cam_num =  0
@@ -460,8 +460,8 @@ def process_camera(pid,process_share_dict={}):
         ret, frame_raw = cap.read()   
 
         if ret:
-
-            if is_recod_video: saver.add_frame(frame_raw)
+            frame_for_anglesreader = copy.deepcopy(frame_raw)
+            if is_recod_video: saver.add_frame(frame_for_anglesreader)
             
             if whether_firstframe: 
                 saver.acquire_marker_color()
@@ -474,6 +474,7 @@ def process_camera(pid,process_share_dict={}):
                 noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(False)
                 process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                 print(process_share_dict['angles'])
+                cv2.imshow('Video Preview', saver.frame)
 
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
                 if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
