@@ -539,7 +539,6 @@ if __name__ == '__main__':
         cv2.imshow('Video Preview', frame)
         if cv2.waitKey(1) & 0xFF == 27: # cv2.waitKey(1000) & 0xFF == ord('q')
             break
-
     cap.release()
     cv2.destroyAllWindows()
 
@@ -551,3 +550,4 @@ if __name__ == '__main__':
     
     tracker.store_video(frames_to_store,output_video_fps)
     tracker.store_data(measure,output_video_fps)
+    print(tracker.video_pos_file_url)

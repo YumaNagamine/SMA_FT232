@@ -24,26 +24,28 @@ def nothing(x):
 
 window_name = "Parameters"
 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-cv2.createTrackbar("L_upper", window_name,220,255,nothing)
-cv2.createTrackbar("L_lower", window_name,100,255,nothing)
-cv2.createTrackbar("A_upper", window_name,220,255,nothing)
-cv2.createTrackbar("A_lower", window_name,160,255,nothing)
-cv2.createTrackbar("B_upper", window_name,160,255,nothing)
-cv2.createTrackbar("B_lower", window_name,60,255,nothing)
+cv2.createTrackbar("L_upper", window_name,142,255,nothing)
+cv2.createTrackbar("L_lower", window_name,35,255,nothing)
+cv2.createTrackbar("A_upper", window_name,163,255,nothing)
+cv2.createTrackbar("A_lower", window_name,132,255,nothing)
+cv2.createTrackbar("B_upper", window_name,94,255,nothing)
+cv2.createTrackbar("B_lower", window_name,56,255,nothing)
 
 #                        [ [100,220],[160,220],[60,160]], # Marker A
 #                        [ [100,215],[70,190],[30,80]], # Marker B
 #                        [ [180,210],[55,85],[120,180]], # Marker C
-#                        [ [150,235],[80,90],[100,120]], # Marker D 
+#                        [ [150,235],[80,90],[100,120]], # Marker D
+# blue upper: [142 163  94] lower: [ 35 132  56]
+# orange upper: [189 187 212] lower: [118 139 137]
+# green upper: [134 108 132] lower: [ 87  76 106]
+# Yellow upper: [175 127 232] lower: [104 109 149]
 video = cv2.VideoCapture(0)
 ret, frame = video.read()
 if not ret:
     print("aiueo")
 cv2.imshow("frame", frame)
 video.release()
-print("hogehoge")
 while True:
-    print("fugafuga")
     frame_lab = cv2.cvtColor(frame, cv2.COLOR_BGR2Lab)
     l_upper = cv2.getTrackbarPos("L_upper", window_name)
     l_lower = cv2.getTrackbarPos("L_lower", window_name)
@@ -55,7 +57,6 @@ while True:
     
     threshold_lower = np.array([l_lower, a_lower, b_lower])
     threshold_upper = np.array([l_upper, a_upper, b_upper])
-    print("upper:", threshold_upper)
     mask = cv2.inRange(frame_lab, threshold_lower, threshold_upper)
     cv2.imshow("mask", mask)
 
@@ -64,6 +65,8 @@ while True:
 
 cv2.destroyAllWindows()
 
+print("upper:", threshold_upper)
+print("lower:", threshold_lower)
 # class AsyncVideoSaver(object):
 #     def __init__(self, filename, fourcc, fps, frame_size):
 #         self.filename = filename

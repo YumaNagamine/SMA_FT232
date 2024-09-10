@@ -62,7 +62,9 @@ class exprimentGUI():
         
         cd_video = 'C:\\Users\\51165\\OneDrive\\Pictures\\Camera Roll\\'
         # ViewGUI(self.root_window,cd_video) #
-        self.page_video_scale_contoller(self.frame_page,cd_video)
+
+        # self.page_video_scale_contoller(self.frame_page,cd_video)
+        self.page_video_scale_PID(self.frame_page,cd_video)
 
         self.channels = PWMGENERATOR.CH_EVEN
 
@@ -202,6 +204,135 @@ class exprimentGUI():
         self.photo_acquired_t = 0
         self.butten_connect() 
         self.make_thread(self.refresh_img)
+
+    def page_video_scale_PID(self,container_window,cd_video):
+        
+        log_video_frame_width = 0.5
+        Frame_video_log = ttk.Frame(container_window)   
+        Frame_video_log.place(relx=0,rely=0,relheight=1,relwidth=log_video_frame_width)
+
+        frame_scale_butten = ttk.Frame(container_window)   
+        margin_scale_butten_W = 0.006
+        frame_scale_butten.place(relx = log_video_frame_width+margin_scale_butten_W,
+                                 rely=0,relheight=1,relwidth = 1-log_video_frame_width-margin_scale_butten_W )
+
+        # Frame scale
+        height_scale_box = 0.8
+        frame_scale = ttk.Frame(frame_scale_butten)   
+        frame_scale.place(relx=0,rely=0,relheight=height_scale_box,relwidth=1)
+        
+
+        # Video Box
+        margin_video_log_box = margin_scale_butten_W
+
+        width_video_box = 1 -margin_video_log_box
+        height_video_box =   0.5625 * width_video_box
+
+        log_video_frame = ttk.Labelframe(Frame_video_log,text='Video',bootstyle="info",)
+        log_video_frame.place(relx=margin_video_log_box,rely=0,
+                           relheight=height_video_box,relwidth= width_video_box )
+
+        # image = self.process_share_dict['photo']
+        image = cv2.imread(IMG_FOLDER+'1.jpg')
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(image)
+        photo = ImageTk.PhotoImage(image)  
+
+        self.video_label_0 = tk.Label(log_video_frame)
+        self.video_label_0.place(relx=0,rely=0,relheight= 0.95,relwidth=1)#.pack(expand = "yes")# 
+        
+        self.video_label_0.configure(image=photo)
+        self.video_label_0.image = photo 
+        
+        # FPS box
+        self.variable_fps = ttk.StringVar();self.variable_fps.set('Fps: ')
+        self.entry_fps = ttk.Label(log_video_frame,textvariable= self.variable_fps,bootstyle='info')  
+        self.entry_fps.place(relx=0.2,rely=0.95,relheight=0.05,relwidth=0.1)
+
+        # Log Box
+        log_label_frmae = ttk.Labelframe(Frame_video_log,text='Log',bootstyle="info",)
+        log_label_frmae.place(relx=margin_video_log_box,rely= height_video_box,
+                           relheight=1-height_video_box,relwidth=1-margin_video_log_box)
+      
+        from ttkbootstrap.scrolled import ScrolledText,ScrolledFrame
+        self.scroller_log = ScrolledText(log_label_frmae, 
+                    font=('Calibri Light',8),bootstyle='dark',vbar=True,autohide=True) # width=49, height=17,     
+        self.scroller_log.place(relx=0,rely=0,relheight=1,relwidth=1)
+
+ 
+        sys.stdout = self.ScollerLogger(self.scroller_log,Frame_video_log)
+        sys.stderr = sys.stdout
+
+        # Scales
+        num_scale = 3
+        scales = []
+        margin_scale_W = margin_scale_butten_W
+        margin_scale_H = 0.02
+        self.output_levels = []
+
+        # Variables for  callback
+        for _ in range(num_scale): self.output_levels.append(ttk.DoubleVar()) 
+            # self.output_levels[-1].set(0)
+            # self.output_levels[_].trace_add("write",self.callback_scorller)
+
+        
+        # scales_colors = ["#%02x%02x%02x"%(25,255-int((_+1)*255/(num_scale+10)),255) for _ in range(num_scale)]  
+        # self.run_log_print(str(scales_colors))
+        height_ch_butten = 0.1
+        height_ch_label_frame = 0.11
+        for _i in range(num_scale):
+
+            _ch_main_frame = ttk.Frame(frame_scale,)
+            _ch_main_frame.place(relx = _i/(num_scale), rely = 0,
+                         relheight=1, relwidth = 1/(num_scale)-margin_scale_W)
+
+            _ch_label_text = ('Ch ' if _i==0 else '' )+str(_i*2)+''
+            _ch_label_frmae = ttk.Labelframe(_ch_main_frame,text=_ch_label_text,bootstyle="info",)
+            _ch_label_frmae.place(relx = 0, rely = 0, relheight= height_ch_label_frame, relwidth = 1-margin_scale_W)
+            
+            _ch_label = ttk.Entry(_ch_label_frmae, textvariable = self.output_levels[_i] )
+            _ch_label.place(relx=0,rely=0,relheight=1,relwidth=1)   
+            
+
+            _ch_butten_max = ttk.Button(_ch_main_frame,text='MAX',bootstyle="success-outline",
+                                        command = lambda arg=_i : self.output_levels[arg].set(1))
+            
+            _ch_butten_max.place(relx=0,rely=0.1+margin_scale_H,relheight=height_ch_butten,relwidth=1)
+
+
+            _ch_butten_min = ttk.Button(_ch_main_frame,text='MIN',bootstyle="success-outline",
+                                        command = lambda arg=_i : self.output_levels[arg].set(0))
+            _ch_butten_min.place(relx=0,rely=1-height_ch_butten-margin_scale_H,
+                                 relheight=height_ch_butten,relwidth=1)
+
+            scales.append( ttk.Scale(_ch_main_frame, value=0, orient=ttk.VERTICAL,
+                            takefocus=1,bootstyle="SUCCESS",name = 'ch'+str(_i), from_= 1,
+                            to=0,variable = self.output_levels[_i]) )#self.callback_scorller
+            
+            scales[-1].place(relx = 0, rely = height_ch_label_frame +height_ch_butten +2*margin_scale_H,
+                              relheight = 1 - height_ch_label_frame -2*height_ch_butten -4*margin_scale_H, 
+                              relwidth = 1)
+        
+        # Frame System Buttens
+        butten_list = ['','Connect\n\nPCA-9685','STOP \n\nAll channel','APPLY\n\nDuty Ratio','EXIT']
+        butten_style_list = ['scondary','info','danger','warning','scondary']
+        butten_style_list = [_ + 'outline' for _ in butten_style_list]
+        butten_func_list = [[],self.butten_connect,self.butten_stop,self.butten_apply,self.exit]
+
+        num_butten = len(butten_list)
+        frame_button = ttk.Frame(frame_scale_butten) 
+        frame_button.place( relx = 0, rely = height_scale_box+margin_scale_butten_W,
+                    relheight = 1-height_scale_box-margin_scale_butten_W,relwidth=1)
+
+        for _i in range(num_butten):
+            butten_connect = ttk.Button(frame_button, width=20,
+                    text= butten_list[_i],style=butten_style_list[_i], command = butten_func_list[_i])
+            butten_connect.place(relx = _i/num_butten,rely=0,
+                                 relheight=1,relwidth = 1/num_butten-margin_scale_butten_W)
+        self.photo_acquired_t = 0
+        self.butten_connect() 
+        self.make_thread(self.refresh_img)
+
 
     def refresh_img(self):
         # t_old = self.timestamp_recived_img
@@ -460,8 +591,8 @@ def process_camera(pid,process_share_dict={}):
         ret, frame_raw = cap.read()   
 
         if ret:
-            frame_for_anglesreader = copy.deepcopy(frame_raw)
-            if is_recod_video: saver.add_frame(frame_for_anglesreader)
+            # frame_for_anglesreader = copy.deepcopy(frame_raw)
+            if is_recod_video: saver.add_frame(frame_raw)
             
             if whether_firstframe: 
                 saver.acquire_marker_color()
