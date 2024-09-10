@@ -1,5 +1,5 @@
-# Debugged @ 20240726
-# Created by Askar.Liu
+# Debugged @ 20240906
+# Created by Nagmine
 if __name__=='__main__': # Test codes # Main process
     import os,sys
     # import pyftdi.spi as spi
@@ -67,26 +67,27 @@ class AngleTracker(AsyncVideoSaver):
 
         self.color_mode = 0 # 0: Lab,1: Rgb
         self.num_maker_sets = 4
-        self.denoising_mode = denoising_mode# 'monocolor'
+        self.denoising_mode = 0# denoising_mode# 'monocolor'
         self.cv_choose_wd_name = "Choose"
-        self.threshold_area_size = [10, 10, 10, 10]
-        self.colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]        
+        self.threshold_area_size = [10, 30, 20, 10]
+        self.colors = [(255,0,0), (127,0,255), (255,255,255), (0,127,255)] 
+        self.video_pos_file_url = "C:/Users/SAWALAB/Desktop/projects/SMA_FT232/LOG/realtime/pos.json"
 
-        if self.color_mode ==0: # Lab
-            self.maker_tolerance_L = 20#int(0.08 * 255)
-            self.maker_tolerance_a = 30# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = 30# int(0.09 * 255)# Yellow -> Blue
+        if self.color_mode == 0: # Lab
+            self.maker_tolerance_L = [20,20,20,20]#int(0.08 * 255)
+            self.maker_tolerance_a = [20,20,17,20]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [22,20,15,15]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
             self.maker_tolerance_b = int(0.2 * 255)# Yellow -> Blue  
 
         self.marker_rangers = [ #[Low Lhigh alow ahigh blow bhigh]] # SC01
-                       [ [100,220],[160,220],[60,160]], # Marker A
-                       [ [100,215],[70,190],[30,80]], # Marker B
-                       [ [180,210],[55,85],[120,180]], # Marker C
-                       [ [150,235],[80,90],[100,120]], # Marker D 
-                        ]
+                       [ [35,142],[132,163],[56,92]], # Marker A
+                       [ [118,189],[139,187],[137,212]], # Marker B
+                       [ [87,134],[76,108],[106,132]], # Marker C
+                       [ [104,175],[109,127],[149,232]], # Marker D 
+                        ] # under the condition of light: 25%
         self._point_counter = 0
         self.maker_position_frame0 = []
         for _ in range(self.num_maker_sets):self.maker_position_frame0.append([0,0])
@@ -158,7 +159,7 @@ class AngleTracker(AsyncVideoSaver):
     def calculate_vector(point1, point2):
         return np.array(point2) - np.array(point1)    
 
-    def segment_marker_by_color(self,frame_tmp): # Askar.L
+    def segment_marker_by_color(self,frame_tmp): # Askar.L # used in extract_angle
         # Input must be a frame in the cielab color model from the OpenCV function
         num_maker_sets = 4
 
@@ -205,7 +206,6 @@ class AngleTracker(AsyncVideoSaver):
         
         cv2.namedWindow(self.cv_choose_wd_name, cv2.WINDOW_GUI_EXPANDED)
         cv2.setMouseCallback(self.cv_choose_wd_name, self.mouse_event)
-        cv2.waitKey(0)
     
         if self.color_mode == 0:
             frame_to_segment = cv2.cvtColor(self.frame, cv2.COLOR_RGB2Lab)
@@ -219,7 +219,7 @@ class AngleTracker(AsyncVideoSaver):
 
             print(self.maker_position_frame0)
             for [x,y] in self.maker_position_frame0:
-                self._disp_marker_pos(x,y,self.frame)
+                self._disp_marker_pos(x,y)
                 # self.maker_position_frame0[self._point_counter] = [x,y]
                 self._point_counter = self._point_counter + 1 if self._point_counter < self.num_maker_sets-1 else 0
 
@@ -245,9 +245,13 @@ class AngleTracker(AsyncVideoSaver):
             # Get color dara from lab img
 
             # Cal tolerance range
-            upper_limit = frame_to_segment[_pos[1]][_pos[0]] + [self.maker_tolerance_L, self.maker_tolerance_a, self.maker_tolerance_b]  
-            lower_limit = frame_to_segment[_pos[1]][_pos[0]] - [self.maker_tolerance_L, self.maker_tolerance_a, self.maker_tolerance_b]
+            upper_limit = frame_to_segment[_pos[1]][_pos[0]] + [
+                self.maker_tolerance_L[_i], self.maker_tolerance_a[_i], self.maker_tolerance_b[_i]]  
+            
+            lower_limit = frame_to_segment[_pos[1]][_pos[0]] - [
+                self.maker_tolerance_L[_i], self.maker_tolerance_a[_i], self.maker_tolerance_b[_i]]
             # print(upper_limit,lower_limit);exit() # [146 171  82] [122 147  58]
+
             marker_rangers_ch = []
             # Save to variable
             for _j in range(3):
@@ -257,9 +261,9 @@ class AngleTracker(AsyncVideoSaver):
             pass
             marker_rangers.append(marker_rangers_ch)
 
-        print(marker_rangers)
+        print('marker_rangers:',marker_rangers)
         self.marker_rangers = marker_rangers
-        
+        # os.system('pause')
         cv2.destroyWindow("Choose")
 
         return marker_rangers 
@@ -271,7 +275,6 @@ class AngleTracker(AsyncVideoSaver):
 
         # Segment markers by color in the CIELAB color space
         [marker_blue, marker_pink, marker_green, marker_yellow] = self.segment_marker_by_color(cielab_frame)
-        # marker_blue, marker_pink, marker_green, marker_yellow = segment_marker_by_color(cielab_frame)
 
 
         # Create a stack of masks for each color marker
@@ -300,8 +303,9 @@ class AngleTracker(AsyncVideoSaver):
                 num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
 
                 # Filter regions based on area threshold
+              
                 filtered_regions = [index for index, stat in enumerate(stats[1:]) if stat[4] >= thr]
-                
+                # stat ;(左上の x 座標, 左上の y 座標, 幅, 高さ, 面積)
                     
 
                 # Initialize a list to store points per mask
@@ -394,7 +398,7 @@ class AngleTracker(AsyncVideoSaver):
                 self._disp_marker_pos(x, y)
                 self.maker_position_frame0[self._point_counter] = [x,y]
                 self._point_counter = self._point_counter + 1 if self._point_counter < self.num_maker_sets-1 else 0
-            # print(self.maker_position_frame0)
+                print(self.maker_position_frame0)
             else:
                 _meassage = "Please right click to start"
                 cv2.putText(self.frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), thickness = 1)
@@ -424,16 +428,17 @@ class AngleTracker(AsyncVideoSaver):
             # self.calibrateRange()
         pass
 
-    # def store_point_pos(self,):
-    #     # save position of markers in video to json
-    #     _data = self.maker_position_frame0
-    #     _data = {'maker_position_frame0':_data}
-    #     info_json = json.dumps(_data,sort_keys=True, indent=4, separators=(',', ': '))
+    def store_point_pos(self,):
+        import json
+        # save position of markers in video to json
+        _data = self.maker_position_frame0
+        _data = {'maker_position_frame0':_data}
+        info_json = json.dumps(_data,sort_keys=True, indent=4, separators=(',', ': '))
 
-    #     f = open(self.video_pos_file_url, 'w')
-    #     f.write(info_json)
-    #     # exit()
-    #     pass
+        f = open(self.video_pos_file_url, 'w')
+        f.write(info_json)
+        # exit()
+        pass
 
     # def store_data(self,measure,set_fps=30):
     #     ## Store csv - raw_angles
@@ -462,7 +467,6 @@ class AngleTracker(AsyncVideoSaver):
     #     out = cv2.VideoWriter(self.output_video_url, fourcc, fps, (width, height))
     #     for frame in frames:out.write(frame)
     #     out.release()
-
 
 
 if __name__ == "__main__":
@@ -583,7 +587,7 @@ if __name__ == "__main__":
             if True: #read angles
                 noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(False)
                 angles = [angle_0, angle_1, angle_2]
-                print(angles)
+                # print(angles)
                 # process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                 # print(process_share_dict['angles'])
                 cv2.imshow('Video Preview', saver.frame)
