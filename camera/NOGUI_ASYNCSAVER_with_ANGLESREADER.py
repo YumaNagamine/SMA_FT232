@@ -589,7 +589,7 @@ if __name__ == "__main__":
                 cv2.imshow('Video Preview', saver.frame)
 
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
-                if frame_id > 45: cuqr_fps = 30 / (cur_time - frame_times[0])
+                if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
                 else : cur_fps = -1
                 cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{cur_time}',
                              (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
