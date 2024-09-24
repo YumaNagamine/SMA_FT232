@@ -8,6 +8,12 @@ class FUZZY_CONTROL():
 
         self.step = 1
         self.prev_time = time.time()
+        self.du_coef_list = np.zeros((4,4,2))
+        self.weight  = np.array([[1,1,1],
+                                 [0,1,1],
+                                 [1,1,1],
+                                 [1,1,1]])
+        self.den = np.sum(self.weight, axis=1)
 
     def save_angle(self, process_share_dict = {}): 
         current_angles = np.array(process_share_dict['angles'])
@@ -30,7 +36,7 @@ class FUZZY_CONTROL():
         coord = np.vstack((x,y)).T
         return coord
     
-    def set_slope(self, start_x, stop_x, start_y, stop_y, name = 'Angle Error'):
+    def set_slope(self, start_x, stop_x, start_y, stop_y, name: str): # for IF part
         [a,b] = self.LinearFunc_coef(start_x, stop_x, start_y, stop_y)
         if name == 'Angle Error':
             if start_y < stop_y:  self.AE_uphill_coef = [a, b]
@@ -38,7 +44,8 @@ class FUZZY_CONTROL():
         elif name == 'Angular Velocity':
             if start_y < stop_y:  self.AV_uphill_coef = [a, b]
             else : self.AV_downhill_coef = [a,b]
-        return 
+        return
+    
     def set_triangle(self, minimum_x, maximum_x, center_x = 0, center_y = 1, name = 'Angle Error'):
         self.center_x = center_x
         initial_value = 0
@@ -59,8 +66,36 @@ class FUZZY_CONTROL():
             self.AV_rightside_triangle = [c,d]
 
         return
+
+    def set_slope_triangle(self, param:np.ndarray[np.float32], duty_ratio_num: int): # for THEN part
+        '''
+        duty_ratio_num is 0-3. 0 and 1 for Extension, 2 and 3 for Flexion
         
-    def uphill_value(self, x, name = 'Angle Error'): #must done after function set_triangle
+        param = [[[start_x, stop_x, start_y, stop_y] (for uphill) [start_x, stop_x, start_y, stop_y] (for downhill) [minimum_x, maximum_x, center_x, center_y] (for triangle)] <- for du0
+                 [[start_x, stop_x, start_y, stop_y] (for uphill) [start_x, stop_x, start_y, stop_y] (for downhill) [minimum_x, maximum_x, center_x, center_y] (for triangle)] <- for du1
+                 [[start_x, stop_x, start_y, stop_y] (for uphill) [start_x, stop_x, start_y, stop_y] (for downhill) [minimum_x, maximum_x, center_x, center_y] (for triangle)] <- for du2
+                 [[start_x, stop_x, start_y, stop_y] (for uphill) [start_x, stop_x, start_y, stop_y] (for downhill) [minimum_x, maximum_x, center_x, center_y] (for triangle)] <- for du3
+                 ]
+                 (4x3x4 array)
+        
+        self.du_coef_list is like as follow:
+        self.du_coef_list = [[[a,b][c,d][e,f][g,h]] coefficients lists for du0 
+                             [[a,b][c,d][e,f][g,h]] coefficients lists for du1
+                             [[a,b][c,d][e,f][g,h]] coefficients lists for du2
+                             [[a,b][c,d][e,f][g,h]] coefficients lists for du3
+                            ]
+                            (4x4x2 array)
+        each coefficients list consists of coef of uphill, downhill, leftside triangle, rightside triangle
+        
+        this function is designed to be used with for-loop on duty_ratio_num
+        
+        '''
+        for i in range(4):
+            self.du_coef_list[duty_ratio_num][i] = self.LinearFunc_coef(param[duty_ratio_num][i][0], param[duty_ratio_num][i][1], param[duty_ratio_num][i][3], param[duty_ratio_num][i][4])
+
+        return 
+        
+    def uphill_value(self, x, name = 'Angle Error'): # for IF part #must done after function set_trianglefor 
         if name == 'Angle Error':
             if x > self.center_x:
                 y = self.AE_uphill_coef[0]*x + self.AE_uphill_coef[1]
@@ -72,7 +107,7 @@ class FUZZY_CONTROL():
                 return y
             else: return 0
      
-    def downhill_value(self, x, name = 'Angle Error'):
+    def downhill_value(self, x, name = 'Angle Error'): # for IF part
         if name == 'Angle Error':
             if x < self.center_x:
                 y = self.AE_downhill_coef[0]*x + self.AE_downhill_coef[1]
@@ -83,7 +118,7 @@ class FUZZY_CONTROL():
                 y = self.AV_downhill_coef[0]*x + self.AV_downhill_coef[1]
                 return y
 
-    def inverttriangle_value(self, x):
+    def inverttriangle_value(self, x):# for IF part
         if x <= self.center_x:
             y = self.AV_downhill_coef[0]*x + self.AV_downhill_coef[1]
             return y
@@ -91,7 +126,7 @@ class FUZZY_CONTROL():
             y = self.AV_uphill_coef[0]*x + self.AV_uphill_coef[1]
             return y
 
-    def triangle_value(self, x, name = 'Angle Error'):
+    def triangle_value(self, x, name = 'Angle Error'): # for IF part
         if name == 'Angle Error':
             if self.AE_triangle_leftroot <= x <= self.center_x:
                 y = self.AE_leftside_triangle[0]*x + self.AE_leftside_triangle[1]
@@ -109,12 +144,24 @@ class FUZZY_CONTROL():
                 return y
             else : return 0
 
+    def get_zero(self, ): #need?
+        pass
+
     def Fuzzy_process(self):
+        '''
+        IF THEN rules:(E: error, w: absolute value of angle velocity )
+        1 IF E > 0 large and w large THEN remain
+        2 IF E > 0 large and w small THEN du > 0, FLEX
+        3 IF E < 0 large and w large THEN remain
+        4 IF E < 0 large and w small THEN du > 0, EXTEND
+        5 IF E small and w large THEN du < 0, RESIST
+        6 IF E small and w small THEN remain
+        '''
         # error0, error1, error2 = self.error[0], self.error[1], self.error[2]
         AE_membership_degree = np.zeros((3,3))
-        AE_membership_degree[0] = self.uphill_value(self.error)
-        AE_membership_degree[1] = self.downhill_value(self.error)
-        AE_membership_degree[2] = self.triangle_value(self.error)
+        AE_membership_degree[0] = self.uphill_value(self.error, name ='Angle Error')
+        AE_membership_degree[1] = self.downhill_value(self.error, name = 'Angle Error')
+        AE_membership_degree[2] = self.triangle_value(self.error, name = 'Angle Error')
         AE_membership_degree = AE_membership_degree.T # AE membership degree[i] is [md(uphill),md(downhill),md(triangle)] for angle i
 
         AV_membership_degree = np.zeros((2,3))
@@ -129,10 +176,41 @@ class FUZZY_CONTROL():
         #         for AV in range(2):
         #             membership_degree.append(min(AE_membership_degree[angle_num][AE], AV_membership_degree[angle_num][AV]))
         # membership_degree = np.array(membership_degree).reshape(3,6)
-        membership_degree = np.minimum(AE_membership_degree[:, :, np.newaxis], AV_membership_degree[:, :, np.newaxis]).reshape(3, 6) # to be verified
+        self.membership_degree = np.minimum(AE_membership_degree[:, :, np.newaxis], AV_membership_degree[:, :, np.newaxis]).reshape(3, 6) # to be verified
+        '''
+        membership degree array should be as follows
+        [[1,2,3,4,5,6](angle0)
+         [1,2,3,4,5,6](angle1)
+         [1,2,3,4,5,6](angle2)
+        ] 1-6 is membership degree of each IF-THEN rule
+        '''
+        pass
+    def weighting_membership_degree(self):
+        new_membership_degree = np.zeros((3,4))
+        # for i in range(3):
+        #     new_membership_degree[i][0] = self.membership_degree[i][0] + self.membership_degree[i][2] + self.membership_degree[i][5] # remain
+        #     new_membership_degree[i][1] = self.membership_degree[i][1] # flex
+        #     new_membership_degree[i][2] = self.membership_degree[i][3] # extend
+        #     new_membership_degree[i][3] = self.membership_degree[i][4] # resist
+        new_membership_degree[:, 0] = self.membership_degree[:, 0] + self.membership_degree[:, 2] + self.membership_degree[:, 5] #remain
+        new_membership_degree[:, 1] = self.membership_degree[:, 1] #flex
+        new_membership_degree[:, 2] = self.membership_degree[:, 3] #extend
+        new_membership_degree[:, 3] = self.membership_degree[:, 4] #resist
 
+        #weight = [[1,1,1],[0,1,1],[1,1,1],[1,1,1]] np.ndarray
+
+        self.new_membership_degree = (np.diag(self.weight @ new_membership_degree))/self.den #obtain weighted membership degree:[remain, flex, extend, resist]
+
+    def remain_func(self, x):
+        pass
+    def flex_func(self,):
+        pass
+    def extend_func(self, ):
+        pass
+    def centroid_method():
 
         pass
+
     def deFuzzy_process(self):
         pass
     def get_triangle_array(self, minimum_x, maximum_x, center_x, center_y):
