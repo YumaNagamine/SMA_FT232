@@ -1,19 +1,26 @@
 import numpy as np
 import time 
+import matplotlib.pyplot as plt
+
 
 class FUZZY_CONTROL():
-    def __init__(self, target=[], process_share_dict={}):
+    def __init__(self, target=[], process_share_dict={}, savedata = False):
         self.target = np.array(target)
         self.prev_angles = np.array(process_share_dict['angles'])
 
         self.step = 1
         self.prev_time = time.time()
-        self.du_coef_list = np.zeros((4,4,2))
+        self.du_coef_list = np.zeros((4,4,2)) #for set_slope_triangle
         self.weight  = np.array([[1,1,1],
                                  [0,1,1],
                                  [1,1,1],
-                                 [1,1,1]])
+                                 [1,1,1]]) # can be modified
         self.den = np.sum(self.weight, axis=1)
+        if savedata == True:
+            self.startingtime = time.time()
+            st = time.time() - self.startingtime            
+            self.output_with_time = np.array([st,0,0,0,0])
+
 
     def save_angle(self, process_share_dict = {}): 
         current_angles = np.array(process_share_dict['angles'])
@@ -67,7 +74,7 @@ class FUZZY_CONTROL():
 
         return
 
-    def set_slope_triangle(self, param:np.ndarray[np.float32], duty_ratio_num: int): # for THEN part
+    def set_slope_triangle(self, param:np.ndarray[np.float32], duty_ratio_num: int): # for THEN part, this is no longer necessary
         '''
         duty_ratio_num is 0-3. 0 and 1 for Extension, 2 and 3 for Flexion
         
@@ -93,7 +100,19 @@ class FUZZY_CONTROL():
         for i in range(4):
             self.du_coef_list[duty_ratio_num][i] = self.LinearFunc_coef(param[duty_ratio_num][i][0], param[duty_ratio_num][i][1], param[duty_ratio_num][i][3], param[duty_ratio_num][i][4])
 
-        return 
+        return
+
+    def set_delta_func(self, output_values:np.ndarray[np.float32]): #for THEN part, this is probably faster than set_slope_triangle
+        """ 
+        output_values should be:
+        [[remain, flex, extend=0, resist] for duty ratio0
+         [remain, flex, extend=0,resist] for duty ratio1
+         [remain, flex=0, extend, resist] for duty ratio2
+         [remain, flex=0, extend, resist] for duty ratio3
+         ]
+        """
+        self.output_values = output_values
+        return
         
     def uphill_value(self, x, name = 'Angle Error'): # for IF part #must done after function set_trianglefor 
         if name == 'Angle Error':
@@ -144,9 +163,6 @@ class FUZZY_CONTROL():
                 return y
             else : return 0
 
-    def get_zero(self, ): #need?
-        pass
-
     def Fuzzy_process(self):
         '''
         IF THEN rules:(E: error, w: absolute value of angle velocity )
@@ -176,7 +192,7 @@ class FUZZY_CONTROL():
         #         for AV in range(2):
         #             membership_degree.append(min(AE_membership_degree[angle_num][AE], AV_membership_degree[angle_num][AV]))
         # membership_degree = np.array(membership_degree).reshape(3,6)
-        self.membership_degree = np.minimum(AE_membership_degree[:, :, np.newaxis], AV_membership_degree[:, :, np.newaxis]).reshape(3, 6) # to be verified
+        self.membership_degree = np.minimum(AE_membership_degree[:, :, np.newaxis], AV_membership_degree[:, :, np.newaxis]).reshape(3, 6) 
         '''
         membership degree array should be as follows
         [[1,2,3,4,5,6](angle0)
@@ -184,7 +200,7 @@ class FUZZY_CONTROL():
          [1,2,3,4,5,6](angle2)
         ] 1-6 is membership degree of each IF-THEN rule
         '''
-        pass
+        return
     def weighting_membership_degree(self):
         new_membership_degree = np.zeros((3,4))
         # for i in range(3):
@@ -200,6 +216,8 @@ class FUZZY_CONTROL():
         #weight = [[1,1,1],[0,1,1],[1,1,1],[1,1,1]] np.ndarray
 
         self.new_membership_degree = (np.diag(self.weight @ new_membership_degree))/self.den #obtain weighted membership degree:[remain, flex, extend, resist]
+        self.new_membership_degree = np.tile(self.new_membership_degree, (4,1))
+        return
 
     def remain_func(self, x):
         pass
@@ -207,12 +225,23 @@ class FUZZY_CONTROL():
         pass
     def extend_func(self, ):
         pass
-    def centroid_method():
-
-        pass
+    def centroid_method_delta(self):
+        num = np.diag(self.new_membership_degree @ self.output_values.T)
+        den = np.sum(self.new_membership_degree, axis=1)
+        centroid = num/den
+        return centroid
 
     def deFuzzy_process(self):
-        pass
+        self.weighting_membership_degree()
+        output = self.centroid_method_delta()
+        return output
+    
+    def save_output(self, output):
+        nptime = np.array( [self.prev_time - self.startingtime] )
+        output_with_time = np.hstack((nptime, output))
+        self.output_with_time = np.vstack((self.output_with_time, output_with_time))
+        return
+    
     def get_triangle_array(self, minimum_x, maximum_x, center_x, center_y):
         initial_value = 0
         final_value = 0
@@ -260,22 +289,52 @@ class FUZZY_CONTROL():
 
         return triangle, uphill, downhill
     
+    
+    def Fuzzy_main(self, process_share_dict) -> np.ndarray: # guide how to use the class. parameters must be set previously
+        self.save_angle(process_share_dict)
+        self.Fuzzy_process()
+        du = self.deFuzzy_process()
+        return du
+    
+    def show_membership_func(self):
         
+        return
+    
+
+    def visualize_output(self):
+        S = 1
+        if S == 1:
+            self.output_with_time = self.output_with_time.T
+            plt.plot(self.output_with_time[0],self.output_with_time[1], label = 'du0')
+            plt.plot(self.output_with_time[0],self.output_with_time[2], label = 'du1')
+            plt.plot(self.output_with_time[0],self.output_with_time[3], label = 'du2')
+            plt.plot(self.output_with_time[0],self.output_with_time[4], label = 'du3')
+            plt.legend()
+            plt.xlabel('time')
+            plt.ylabel('output')
+            plt.show()
+        else:
+            timedata = self.output_with_time[:, 0]
+            data0 = self.output_with_time[:, 1]
+            data1 = self.output_with_time[:, 2]
+            data2 = self.output_with_time[:, 3]
+            data3 = self.output_with_time[:, 4]
+            plt.plot(timedata, data0, label = 'du0')
+            plt.plot(timedata, data1, label = 'du1')
+            plt.plot(timedata, data2, label = 'du2')
+            plt.plot(timedata, data3, label = 'du3')
+            plt.legend()
+            plt.xlabel('time')
+            plt.ylabel('output')
+            plt.show()
+
+        return
     
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    process_share_dict = {}
-    process_share_dict['angles'] = [100,70,120]
     target = [150, 100, 200]
-    f = FUZZY_CONTROL(target, process_share_dict)
-
-    mem_tuple = f.set_membership_arrays(-180,180,[-90,90])
-    for i in range(3):
-        # print(mem_tuple[i])
-        plt.plot(mem_tuple[i][:, 0], mem_tuple[i][:, 1])
-    plt.show()
+    
 
     
 
