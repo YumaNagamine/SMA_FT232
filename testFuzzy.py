@@ -21,6 +21,8 @@ class FUZZY_CONTROL():
             st = time.time() - self.startingtime            
             self.output_with_time = np.array([st,0,0,0,0])
 
+        self.AngleErrorRange = [-180,180]
+        self.AngleVelocityRange = [-360, 360] # set proper value
 
     def save_angle(self, process_share_dict = {}): 
         current_angles = np.array(process_share_dict['angles'])
@@ -36,21 +38,26 @@ class FUZZY_CONTROL():
         a = (stop_y - start_y)/(stop_x - start_x)
         b = (stop_x*start_y - start_x*stop_y)/(stop_x - start_x)
         return [a, b]
-    def get_LinearFunc_array(self, start_x, stop_x, start_y, stop_y):
-        coef_list = self.LinearFunc_coef(start_x, stop_x, start_y, stop_y)
-        x = np.arange(start_x, stop_x + self.step, self.step)
-        y = coef_list[0]*x + coef_list[1]
-        coord = np.vstack((x,y)).T
-        return coord
+
     
     def set_slope(self, start_x, stop_x, start_y, stop_y, name: str): # for IF part
         [a,b] = self.LinearFunc_coef(start_x, stop_x, start_y, stop_y)
         if name == 'Angle Error':
-            if start_y < stop_y:  self.AE_uphill_coef = [a, b]
-            else : self.AE_downhill_coef = [a,b]
-        elif name == 'Angular Velocity':
-            if start_y < stop_y:  self.AV_uphill_coef = [a, b]
-            else : self.AV_downhill_coef = [a,b]
+            if start_y < stop_y: 
+                self.AE_uphill_coef = [a, b]
+                self.AE_uphill_param = [start_x, start_y, stop_x, stop_y]
+                self.AE_uphill_root = start_x
+                self.AE_uphill_top = stop_x
+            else :
+                self.AE_downhill_coef = [a,b]
+                self.AE_downhill_param = [start_x, start_y, stop_x, stop_y]
+                self.AE_downhill_root = stop_x
+                self.AE_downhill_top = start_x
+        elif name == 'Angular Velocity': #not necessary?
+            if start_y < stop_y: 
+                self.AV_uphill_coef = [a, b]
+            else : 
+                self.AV_downhill_coef = [a, b]
         return
     
     def set_triangle(self, minimum_x, maximum_x, center_x = 0, center_y = 1, name = 'Angle Error'):
@@ -73,8 +80,19 @@ class FUZZY_CONTROL():
             self.AV_rightside_triangle = [c,d]
 
         return
-
-    def set_slope_triangle(self, param:np.ndarray[np.float32], duty_ratio_num: int): # for THEN part, this is no longer necessary
+    def set_invert_triangle(self, minimum_x, maximum_x, center_x = 0, center_y = 0): #for angle velocity
+        initial_value = 1
+        final_value = 1
+        [a,b] = self.LinearFunc_coef(minimum_x, center_x, initial_value, center_y)
+        [c,d] = self.LinearFunc_coef(center_x, maximum_x, center_y, final_value)
+        self.AV_downhill_coef = [a, b]
+        self.AV_uphill_coef = [c, d]
+        self.AV_invtri_param = [minimum_x, maximum_x, center_x, center_y ]
+        self.AV_invtri_leftroot = minimum_x
+        self.AV_invtri_rightroot = maximum_x
+            
+        return
+    def set_slope_triangle(self, param:np.ndarray[np.float32], duty_ratio_num: int): # for THEN part, this is no longer necessary, due to calciration cost
         '''
         duty_ratio_num is 0-3. 0 and 1 for Extension, 2 and 3 for Flexion
         
@@ -116,41 +134,47 @@ class FUZZY_CONTROL():
         
     def uphill_value(self, x, name = 'Angle Error'): # for IF part #must done after function set_trianglefor 
         if name == 'Angle Error':
-            if x > self.center_x:
+            if self.AE_uphill_root <= x < self.AE_uphill_top:
                 y = self.AE_uphill_coef[0]*x + self.AE_uphill_coef[1]
                 return y
+            elif x >= self.AE_uphill_top:
+                return 1
             else: return 0
-        elif name == 'Angular Velocity':
+        elif name == 'Angular Velocity': #not necessary
             if x > self.center_x:
                 y = self.AV_uphill_coef[0]*x + self.AV_uphill_coef[1]
                 return y
             else: return 0
+
      
     def downhill_value(self, x, name = 'Angle Error'): # for IF part
         if name == 'Angle Error':
-            if x < self.center_x:
+            if self.AE_downhill_top <= x < self.AE_downhill_root:
                 y = self.AE_downhill_coef[0]*x + self.AE_downhill_coef[1]
                 return y
+            elif x < self.AE_downhill_top:
+                return 1
             else: return 0
-        elif name == 'Angular Velocity':
+        elif name == 'Angular Velocity': # not necessary
             if x > self.center_x:
                 y = self.AV_downhill_coef[0]*x + self.AV_downhill_coef[1]
                 return y
 
-    def inverttriangle_value(self, x):# for IF part
-        if x <= self.center_x:
+    def inverttriangle_value(self, x):# for IF part. only used in angle velocity part
+        if self.AV_invtri_leftroot < x <= self.center_x:
             y = self.AV_downhill_coef[0]*x + self.AV_downhill_coef[1]
             return y
-        elif x > self.center_x:
+        elif self.center_x < x < self.AV_invtri_rightroot:
             y = self.AV_uphill_coef[0]*x + self.AV_uphill_coef[1]
             return y
+        else: return 1
 
     def triangle_value(self, x, name = 'Angle Error'): # for IF part
         if name == 'Angle Error':
             if self.AE_triangle_leftroot <= x <= self.center_x:
                 y = self.AE_leftside_triangle[0]*x + self.AE_leftside_triangle[1]
                 return y
-            elif self.center_x <= x < self.AE_triangle_rightroot:
+            elif self.center_x < x < self.AE_triangle_rightroot:
                 y = self.AE_rightside_triangle[0]*x + self.AE_rightside_triangle[1]
                 return y
             else : return 0
@@ -257,8 +281,19 @@ class FUZZY_CONTROL():
         triangle = np.vstack((x,y)).T
         return triangle
     
-    def set_membership_arrays(self, start_x, stop_x, triangle_root = [], center_x = 0, center_y = 1):
-        triangle = self.get_triangle_array(triangle_root[0], triangle_root[1], center_x, center_y)
+    def get_LinearFunc_array(self, start_x, stop_x, start_y, stop_y):
+        coef_list = self.LinearFunc_coef(start_x, stop_x, start_y, stop_y)
+        x = np.arange(start_x, stop_x + self.step, self.step)
+        y = coef_list[0]*x + coef_list[1]
+        coord = np.vstack((x,y)).T
+        return coord 
+    
+    def set_membership_arrays(self, start_x, stop_x, triangle_root = [], center_x = 0, center_y = 1): #old version, not needed anymore
+        # angle error part 
+        # start_x, stop_x, triangle_root, center_x, center_y = self
+        # triangle
+
+        triangle = self.get_triangle_array(triangle_root[0], triangle_root[1], center_x, center_y) #for AE triangles
 
         if start_x < triangle_root[0]:
             triangle = triangle.T
@@ -275,6 +310,8 @@ class FUZZY_CONTROL():
             triangle = np.array(triangle)
             triangle = triangle.T
         
+        # slope
+
         uphill = self.get_LinearFunc_array(center_x, stop_x, 0, 1)
         downhill = self.get_LinearFunc_array(start_x, center_x, 1, 0)
         uphill = uphill.T
@@ -287,8 +324,29 @@ class FUZZY_CONTROL():
         uphill = np.array(uphill).T
         downhill = np.array(downhill).T
 
+        # angle velocity part
+
+
         return triangle, uphill, downhill
     
+    def membership_arrays(self):#new version, to plot
+        x0 = np.arange(self.AngleErrorRange[0], self.AngleErrorRange[1], step=1)
+        x1 = np.arange(self.AngleVelocityRange[0], self.AngleVelocityRange[1], step = 1)
+
+        y_AE = np.zeros((3, len(x0)))
+        y_AV = np.zeros((2, len(x1)))
+        y_AE[0] = np.vectorize(self.uphill_value)(x0)
+        y_AE[1] = np.vectorize(self.downhill_value)(x0)
+        y_AE[2] = np.vectorize(self.triangle_value)(x0)
+
+        y_AV[0] = np.vectorize(self.inverttriangle_value)(x1)
+        y_AV[1] = np.vectorize(self.triangle_value)(x1, name = 'Angular Velocity')
+        
+        # print('asas',self.uphill_value(x0[359]))
+        # print(y_AE[0])
+        # print(y_AE[1])
+
+        return x0, x1, y_AE, y_AV
     
     def Fuzzy_main(self, process_share_dict) -> np.ndarray: # guide how to use the class. parameters must be set previously
         self.save_angle(process_share_dict)
@@ -297,7 +355,20 @@ class FUZZY_CONTROL():
         return du
     
     def show_membership_func(self):
-        
+        arrays = self.membership_arrays()
+        x0, x1, y_AE, y_AV = arrays[0],arrays[1],arrays[2],arrays[3]
+        fig, axs = plt.subplots(2,1)
+        axs[0].plot(x0, y_AE[0])
+        axs[0].plot(x0, y_AE[1])
+        axs[0].plot(x0, y_AE[2])
+        axs[0].set_title('membership functions on angle error')
+        # axs[0].legend()
+        axs[1].plot(x1, y_AV[0])
+        axs[1].plot(x1, y_AV[1])
+        axs[1].set_title('membership functions on angle velocity')
+        # axs[1].legend()
+        plt.show()
+
         return
     
 
@@ -330,11 +401,38 @@ class FUZZY_CONTROL():
 
         return
     
+    def testfunction(self):
+        arr1 = np.array([1,45,90,135,180])
+        arr2 = np.arange(-180,181,10)
+        print('arr1',arr1)
+        print('arr2',arr2)
+        arr1 = np.vectorize(self.uphill_value)(arr1)
+        arr2 = np.vectorize(self.uphill_value)(arr2)
+
+        return arr1, arr2
+        
 
 
 if __name__ == '__main__':
     target = [150, 100, 200]
-    
+    process_share_dict = {}
+    process_share_dict['angles'] = [100,122,210]
+
+    f = FUZZY_CONTROL(target, process_share_dict, False)
+    f.set_slope(-180, 0, 1, 0, 'Angle Error')
+    f.set_slope(0, 180, 0, 1, 'Angle Error')
+    f.set_triangle(-180, 180, 0, 1)
+    f.set_invert_triangle(-360,360, 0, 0)
+    f.set_triangle(-360, 360, 0, 1, 'Angular Velocity')
+    f.membership_arrays()
+    print(f.AV_triangle_leftroot)
+    print(f.center_x)
+    print(f.AE_uphill_top)
+    print(f.AE_uphill_coef)
+    print('vav', f.uphill_value(90))
+    print('vav', f.testfunction())
+
+    f.show_membership_func()
 
     
 
