@@ -88,8 +88,8 @@ class FUZZY_CONTROL():
         self.AV_downhill_coef = [a, b]
         self.AV_uphill_coef = [c, d]
         self.AV_invtri_param = [minimum_x, maximum_x, center_x, center_y ]
-        self.AV_invtri_leftroot = minimum_x
-        self.AV_invtri_rightroot = maximum_x
+        self.AV_invtri_lefttop = minimum_x
+        self.AV_invtri_righttop = maximum_x
             
         return
     def set_slope_triangle(self, param:np.ndarray[np.float32], duty_ratio_num: int): # for THEN part, this is no longer necessary, due to calciration cost
@@ -161,10 +161,10 @@ class FUZZY_CONTROL():
                 return y
 
     def inverttriangle_value(self, x):# for IF part. only used in angle velocity part
-        if self.AV_invtri_leftroot < x <= self.center_x:
+        if self.AV_invtri_lefttop < x <= self.center_x:
             y = self.AV_downhill_coef[0]*x + self.AV_downhill_coef[1]
             return y
-        elif self.center_x < x < self.AV_invtri_rightroot:
+        elif self.center_x < x < self.AV_invtri_righttop:
             y = self.AV_uphill_coef[0]*x + self.AV_uphill_coef[1]
             return y
         else: return 1
@@ -335,16 +335,17 @@ class FUZZY_CONTROL():
 
         y_AE = np.zeros((3, len(x0)))
         y_AV = np.zeros((2, len(x1)))
+        
+        x0  = x0[: : -1]
         y_AE[0] = np.vectorize(self.uphill_value)(x0)
+        x0  = x0[: : -1]
+        y_AE[0] = y_AE[0][: : -1] #how to solve?
+
         y_AE[1] = np.vectorize(self.downhill_value)(x0)
         y_AE[2] = np.vectorize(self.triangle_value)(x0)
 
         y_AV[0] = np.vectorize(self.inverttriangle_value)(x1)
         y_AV[1] = np.vectorize(self.triangle_value)(x1, name = 'Angular Velocity')
-        
-        # print('asas',self.uphill_value(x0[359]))
-        # print(y_AE[0])
-        # print(y_AE[1])
 
         return x0, x1, y_AE, y_AV
     
@@ -425,12 +426,15 @@ if __name__ == '__main__':
     f.set_invert_triangle(-360,360, 0, 0)
     f.set_triangle(-360, 360, 0, 1, 'Angular Velocity')
     f.membership_arrays()
-    print(f.AV_triangle_leftroot)
-    print(f.center_x)
-    print(f.AE_uphill_top)
-    print(f.AE_uphill_coef)
-    print('vav', f.uphill_value(90))
-    print('vav', f.testfunction())
+    # print(f.AV_triangle_leftroot)
+    # print(f.center_x)
+    # print(f.AE_uphill_top)
+    # print(f.AE_uphill_coef)
+    # print('vav', f.uphill_value(90))
+    # print('vav', f.testfunction())
+    print(f.AV_uphill_coef)
+    print(f.AV_invtri_lefttop)
+
 
     f.show_membership_func()
 
