@@ -73,6 +73,13 @@ while True:
         if whether_first_frame:
             saver.acquire_marker_color()
             fuzzycontrol = FUZZY_CONTROL(target, firstangles?, False)
+            fuzzycontrol.set_slope()
+            fuzzycontrol.set_slope()
+            fuzzycontrol.set_triangle()
+            fuzzycontrol.set_invert_triangle()
+            fuzzycontrol.set_triangle()
+            fuzzycontrol.set_delta_func()
+
             whether_first_frame = False
 
         frame_id += 1
