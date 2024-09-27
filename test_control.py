@@ -73,14 +73,20 @@ while True:
         if whether_first_frame:
             saver.acquire_marker_color()
             fuzzycontrol = FUZZY_CONTROL(target, firstangles?, False)
-            fuzzycontrol.set_slope()
-            fuzzycontrol.set_slope()
-            fuzzycontrol.set_triangle()
-            fuzzycontrol.set_invert_triangle()
-            fuzzycontrol.set_triangle()
-            fuzzycontrol.set_delta_func()
+            fuzzycontrol.set_slope(-180, 180, 0, 1) #membership functions for angle error
+            fuzzycontrol.set_slope(-180, 180, 1, 0) #membership functions for angle error
+            fuzzycontrol.set_triangle(-180, 180, 0, 1) #membership functions for angle error
+            fuzzycontrol.set_invert_triangle(-360, 360, 0, 0) #membership functions for anglular velocity
+            fuzzycontrol.set_triangle(-360, 360, 0, 1, 'Angular Velocity') #membership functions for anglular velocity
+            output_values = np.array([[0, 0.1, 0, -0.1]
+                                      [0, 0.1, 0, -0.1]
+                                      [0, 0, 0.1, -0.1]
+                                      [0, 0, 0.1, -0.1]
+                                      ])
+            fuzzycontrol.set_delta_func() #output membership functions
 
             whether_first_frame = False
+            
 
         frame_id += 1
         frame_times.append(cur_time)
