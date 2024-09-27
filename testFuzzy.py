@@ -124,7 +124,7 @@ class FUZZY_CONTROL():
         """ 
         output_values should be:
         [[remain, flex, extend=0, resist] for duty ratio0
-         [remain, flex, extend=0,resist] for duty ratio1
+         [remain, flex, extend=0, resist] for duty ratio1
          [remain, flex=0, extend, resist] for duty ratio2
          [remain, flex=0, extend, resist] for duty ratio3
          ]
