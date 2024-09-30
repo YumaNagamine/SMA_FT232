@@ -329,7 +329,7 @@ class FUZZY_CONTROL():
 
         return triangle, uphill, downhill
     
-    def membership_arrays(self):#new version, to plot
+    def membership_arrays(self): #new version, to plot
         x0 = np.arange(self.AngleErrorRange[0], self.AngleErrorRange[1], step=1)
         x1 = np.arange(self.AngleVelocityRange[0], self.AngleVelocityRange[1], step = 1)
 

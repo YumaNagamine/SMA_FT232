@@ -63,6 +63,8 @@ cv2.nameWindow("Mask", cv2.WINDOW_GUI_EXPANDED)
 
 if is_recod_video : saver = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor' )
 
+process_share_dict = {}
+
 while True:
     cur_time = time.perf_counter()
     ret, frame_raw = cap.read()
@@ -72,7 +74,7 @@ while True:
 
         if whether_first_frame:
             saver.acquire_marker_color()
-            fuzzycontrol = FUZZY_CONTROL(target, firstangles?, False)
+            fuzzycontrol = FUZZY_CONTROL(target, saver.first_angles, False)
             fuzzycontrol.set_slope(-180, 180, 0, 1) #membership functions for angle error
             fuzzycontrol.set_slope(-180, 180, 1, 0) #membership functions for angle error
             fuzzycontrol.set_triangle(-180, 180, 0, 1) #membership functions for angle error
@@ -83,10 +85,10 @@ while True:
                                       [0, 0, 0.1, -0.1]
                                       [0, 0, 0.1, -0.1]
                                       ])
-            fuzzycontrol.set_delta_func() #output membership functions
+            fuzzycontrol.set_delta_func(output_values) #output membership functions
 
             whether_first_frame = False
-            
+
 
         frame_id += 1
         frame_times.append(cur_time)
@@ -97,12 +99,13 @@ while True:
 
             if angle1 > 180: angle1 = 360 - angle1
             angles = [angle0, angle1, angle2]
-            process_share_dict = angles
+            process_share_dict['angles'] = angles
             print("angle: ", angles)
             cv2.imshow(cv_preview_wd_name, saver.frame)
         
         if True: # Fuzzy control 
             du = fuzzycontrol.Fuzzy_main(process_share_dict)
+            print(du)
 
         if True:
             if frame_id > 45:
