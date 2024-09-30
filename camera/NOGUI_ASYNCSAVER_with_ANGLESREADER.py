@@ -262,6 +262,8 @@ class AngleTracker(AsyncVideoSaver):
         
         cv2.destroyWindow("Choose")
 
+        self.first_angles = self.extract_angle(False)
+
         return marker_rangers 
 
     def extract_angle(self, swap):
