@@ -491,7 +491,6 @@ class AngleTracker(object): # TODO
             else:
                 self.current_angles[i] = self.prev_angles[i]
                 frame = self.add_text_to_frame(frame, "cv error!", position=(150, 300), font_scale=1, thickness=2, color = (255, 255, 0))
-                print('faffafafafafaa')
         return frame
 
 

@@ -344,7 +344,11 @@ class FUZZY_CONTROL():
         y_AE[1] = np.vectorize(self.downhill_value)(x0)
         y_AE[2] = np.vectorize(self.triangle_value)(x0)
 
+        # x1  = x1[: : -1]
         y_AV[0] = np.vectorize(self.inverttriangle_value)(x1)
+        # y_AV[0] = y_AV[0][: : -1]
+        # x1  = x1[: : -1]
+        
         y_AV[1] = np.vectorize(self.triangle_value)(x1, name = 'Angular Velocity')
 
         return x0, x1, y_AE, y_AV
