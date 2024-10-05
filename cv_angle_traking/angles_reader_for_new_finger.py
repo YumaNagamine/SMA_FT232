@@ -304,7 +304,7 @@ class AngleTracker(object): # TODO
         cv2.imshow("Choose", frame)
         return []
 
-    def extract_angle(self, frame, whether_firstframe):
+    def extract_angle(self, frame, whether_firstframe, calc_intersection = True):
         # Convert the input frame to the CIELAB color space
 
         cielab_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
@@ -408,13 +408,11 @@ class AngleTracker(object): # TODO
             angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3], 2)
             
             #Find angles position by calculating intersections of lines 
-            calc_intersection = True
             if calc_intersection:
                 angle0_pos = self.calculate_intersection(makerset_per_frame[0], makerset_per_frame[1])
                 angle1_pos = self.calculate_intersection(makerset_per_frame[1], makerset_per_frame[2])
                 angle2_pos = self.calculate_intersection(makerset_per_frame[2], makerset_per_frame[3])
-                
-                self.angle_pos.append(self.relativise_AnglePos_toMCP(angle0_pos, angle1_pos, angle2_pos))
+                self.angle_pos = self.relativise_AnglePos_toMCP(angle0_pos, angle1_pos, angle2_pos)
 
             _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
@@ -528,11 +526,13 @@ class AngleTracker(object): # TODO
         angle0_pos = angle0_pos - angle2_pos
         angle1_pos = angle1_pos - angle2_pos
         angle0_pos = np.array([0,0])
-        return [angle0_pos, angle1_pos, angle2_pos]
-    def save_trajectory(self):
-        
-        pass
 
+        return [angle0_pos, angle1_pos, angle2_pos]
+
+    def save_trajectory(self, measure, set_fps = 30):
+        df_pos = pd.DataFrame(data = measure, columns=["frame", "DIP", "PIP"])
+        df_pos["time"] = df_pos["frame"]/set_fps
+        df_pos.to_csv(os.path.join())
 
 
 # %%
@@ -585,9 +585,11 @@ if __name__ == '__main__':
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
 
     measure = [] # for storing angles
+    measure_pos = [] # for storing joint positions
     frames_to_store = []
     cnt = frame_shift # for storing frame count
     whether_firstframe = True
+    calc_intersection = True
 
     # Videos capture cycles
     while True:
@@ -599,10 +601,10 @@ if __name__ == '__main__':
 
         if cnt==frame_shift: tracker.acquire_marker_color(frame)
         if whether_firstframe:
-            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
+            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
             whether_firstframe = False
         else:
-            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
+            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
 
         # # Use the original frame instead of creating a copy
         # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
@@ -617,6 +619,9 @@ if __name__ == '__main__':
         end = time.time()
         frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
         measure.append([cnt, angle_0,angle_1,angle_2])
+        if calc_intersection:
+            tracker.angle_pos.insert(0, cnt)
+            measure_pos.append(tracker.angle_pos)
         
         frames_to_store.append(frame.copy())
         cnt += 1
