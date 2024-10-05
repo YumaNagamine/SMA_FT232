@@ -63,6 +63,7 @@ class AngleTracker(object): # TODO
 
         self.enable_maker_pos_acquirement = False
         self.load_point_pos()
+        self.angle_pos = []
 
         pass
         
@@ -405,6 +406,15 @@ class AngleTracker(object): # TODO
             angle_0 = self.calculate_angle(makerset_per_frame[0], makerset_per_frame[1], 0)
             angle_1 = self.calculate_angle(makerset_per_frame[1], makerset_per_frame[2], 1)
             angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3], 2)
+            
+            #Find angles position by calculating intersections of lines 
+            calc_intersection = True
+            if calc_intersection:
+                angle0_pos = self.calculate_intersection(makerset_per_frame[0], makerset_per_frame[1])
+                angle1_pos = self.calculate_intersection(makerset_per_frame[1], makerset_per_frame[2])
+                angle2_pos = self.calculate_intersection(makerset_per_frame[2], makerset_per_frame[3])
+                
+                self.angle_pos.append(self.relativise_AnglePos_toMCP(angle0_pos, angle1_pos, angle2_pos))
 
             _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
@@ -491,8 +501,38 @@ class AngleTracker(object): # TODO
             else:
                 self.current_angles[i] = self.prev_angles[i]
                 frame = self.add_text_to_frame(frame, "cv error!", position=(150, 300), font_scale=1, thickness=2, color = (255, 255, 0))
-                print('faffafafafafaa')
         return frame
+    def calculate_intersection(self, line0, line1): #Each line should be given as two coordinates like :line0 = [(x0, y0),(x1, y1)]
+        x0 = line0[0][0]
+        y0 = line0[0][1]
+        x1 = line0[1][0]
+        y1 = line0[1][1]
+        a00 = y1 - y0
+        a01 = x1 - x0
+        b0 = x0*y1 - x1*y0
+
+        x2 = line1[0][0]
+        y2 = line1[0][1]
+        x3 = line1[1][0]
+        y3 = line1[1][1]
+        a10 = y3 - y2
+        a11 = x3 - x2
+        b1 = x2*y3 - x3*y2
+        A = np.array([[a00, a01],
+                      [a10, a11]])
+        B = np.array([b0, b1])
+        x = np.linalg.solve(A, B)
+        return x
+    
+    def relativise_AnglePos_toMCP(self, angle0_pos, angle1_pos, angle2_pos):
+        angle0_pos = angle0_pos - angle2_pos
+        angle1_pos = angle1_pos - angle2_pos
+        angle0_pos = np.array([0,0])
+        return [angle0_pos, angle1_pos, angle2_pos]
+    def save_trajectory(self):
+        
+        pass
+
 
 
 # %%
