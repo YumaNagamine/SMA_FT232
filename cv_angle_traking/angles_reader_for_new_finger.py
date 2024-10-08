@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import json
+import sys
 
 
 class AngleTracker(object): # TODO
@@ -63,6 +64,7 @@ class AngleTracker(object): # TODO
 
         self.enable_maker_pos_acquirement = False
         self.load_point_pos()
+        self.angle_pos = []
 
         pass
         
@@ -303,7 +305,7 @@ class AngleTracker(object): # TODO
         cv2.imshow("Choose", frame)
         return []
 
-    def extract_angle(self, frame, whether_firstframe):
+    def extract_angle(self, frame, whether_firstframe, calc_intersection = True):
         # Convert the input frame to the CIELAB color space
 
         cielab_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
@@ -327,6 +329,7 @@ class AngleTracker(object): # TODO
 
         # Initialize the direction vector for the first line
         direction_vector_0_1 = None
+        blue_pos = []
         
         if 1:
             # Iterate over each color marker
@@ -362,6 +365,8 @@ class AngleTracker(object): # TODO
 
                     # Append the centroid to the list of points for the mask
                     point_per_mask.append((centroid_x, centroid_y))
+                    if color == (255,0,0): #blue
+                        blue_pos.append((centroid_x, centroid_y))                        
                 
                 # Visualize circles for each point in the mask
                 for idx, point in enumerate(point_per_mask):
@@ -405,7 +410,23 @@ class AngleTracker(object): # TODO
             angle_0 = self.calculate_angle(makerset_per_frame[0], makerset_per_frame[1], 0)
             angle_1 = self.calculate_angle(makerset_per_frame[1], makerset_per_frame[2], 1)
             angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3], 2)
-
+            
+            #Find angles position by calculating intersections of lines 
+            if calc_intersection:
+                angle0_pos = self.calculate_intersection(makerset_per_frame[0], makerset_per_frame[1])
+                angle1_pos = self.calculate_intersection(makerset_per_frame[1], makerset_per_frame[2])
+                angle2_pos = self.calculate_intersection(makerset_per_frame[2], makerset_per_frame[3])
+                d0 = AngleTracker.calc_distance(angle1_pos, blue_pos[0])
+                d1 = AngleTracker.calc_distance(angle1_pos, blue_pos[1])
+                if d0 < d1: #then blue_pos[1] is fingertip
+                    fingertip_pos = blue_pos[1]
+                    # angle0_pos = blue_pos[0]
+                elif d0 > d1: #then blue_pos[0] is fingertip
+                    fingertip_pos = blue_pos[0]
+                    # angle0_pos = blue_pos[1]
+                self.angle_pos = AngleTracker.relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos)
+                # self.angle_pos = AngleTracker.rotate_frame_tracked_points(self.angle_pos[3], self.angle_pos[0], self.angle_pos[1], self.angle_pos[2])
+            
             _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
             frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format((angle_0)), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
@@ -454,7 +475,7 @@ class AngleTracker(object): # TODO
         df_angle = pd.DataFrame(data=measure, columns=["frame", "angle_0", "angle_1", "angle_2"])
         df_angle["time"] = df_angle["frame"] / set_fps
 
-        df_angle.to_csv(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted.csv"), 
+        df_angle.to_csv(os.panth.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted.csv"), 
                         index=False)
 
         np_data = np.array(measure)[:,::-1]
@@ -492,6 +513,119 @@ class AngleTracker(object): # TODO
                 self.current_angles[i] = self.prev_angles[i]
                 frame = self.add_text_to_frame(frame, "cv error!", position=(150, 300), font_scale=1, thickness=2, color = (255, 255, 0))
         return frame
+    
+    def calculate_intersection(self, line0, line1): #Each line should be given as two coordinates like :line0 = [(x0, y0),(x1, y1)]
+        x0 = line0[0][0]
+        y0 = line0[0][1]
+        x1 = line0[1][0]
+        y1 = line0[1][1]
+        a00 = y1 - y0
+        a01 = x1 - x0
+        b0 = x0*y1 - x1*y0
+
+        x2 = line1[0][0]
+        y2 = line1[0][1]
+        x3 = line1[1][0]
+        y3 = line1[1][1]
+        a10 = y3 - y2
+        a11 = x3 - x2
+        b1 = x2*y3 - x3*y2
+        A = np.array([[a00, a01],
+                      [a10, a11]])
+        B = np.array([b0, b1])
+        x = np.linalg.solve(A, B) #intersection of lines
+        return x
+    
+    @staticmethod
+    def relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos):
+        fingertip_pos = fingertip_pos - angle2_pos
+        angle0_pos = angle0_pos - angle2_pos
+        angle1_pos = angle1_pos - angle2_pos
+        angle2_pos = np.array([0, 0])
+        return [fingertip_pos, angle0_pos, angle1_pos, angle2_pos]
+
+    def save_trajectory(self, measure, set_fps = 30):
+        df_pos = pd.DataFrame(data = measure, columns=["frame", "DIP", "PIP"])
+        df_pos["time"] = df_pos["frame"]/set_fps
+        df_pos.to_csv(os.path.join(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted_trajectory.csv")))
+        np_data = np.array(measure)[]
+        saveFigure(np_data,f"{video_name.split('.')[0]}_extracted_trajectory.csv", ["angle_2", "angle_1", "angle_0", "frame"],
+                   show_img=False, figure_mode='Single' )
+
+    @staticmethod
+    def rotate_coordinates(points, angle, center=(0, 0)):
+        """
+        Rotate a set of coordinates around a specified center.
+
+        Parameters:
+        - points: A list of (x, y) coordinates to be rotated.
+        - angle: The rotation angle in degrees.
+        - center: The center of rotation. Default is (0, 0).
+
+        Returns:
+        - Rotated coordinates as a numpy array.
+        """
+        angle_rad = np.radians(angle)
+        cos_theta = np.cos(angle_rad)
+        sin_theta = np.sin(angle_rad)
+
+        # Translate to the origin, rotate, and translate back
+        centered_points = np.array(points) - np.array(center)
+        rotated_points = np.dot(centered_points, np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]]))
+        rotated_points += np.array(center)
+
+        return rotated_points
+
+    @staticmethod
+    def rotate_frame_tracked_points(point_0_a, point_0_b, point_1_b, point_2_b, point_3_b):
+        """
+        Rotate a set of tracked points based on a reference point and a calculated angle.
+
+        Parameters:
+        - point_0_a (tuple): Coordinates of the reference point.
+        - point_0_b (tuple): Coordinates of the first tracked point.
+        - point_1_b (tuple): Coordinates of the second tracked point.
+        - point_2_b (tuple): Coordinates of the third tracked point.
+        - point_3_b (tuple): Coordinates of the fourth tracked point.
+
+        Returns:
+        - np.ndarray: An array containing the rotated coordinates of the tracked points.
+        """
+        # Create a new point along a horizontal line with the first point
+        marker = (point_0_a[0] + 100, point_0_a[1])
+
+        # Calculate the angle of rotation using CvHelper.calculate_angle function
+        shift_angle = AngleTracker.calculate_angle(
+            (
+                point_0_a, point_0_b
+            ),
+            (
+                point_0_a, marker
+            )
+        )
+        # print(shift_angle)
+
+        # Rotate points using CvHelper.rotate_coordinates function
+        rotated_points = AngleTracker.rotate_coordinates([point_0_b, point_1_b, point_2_b, point_3_b], (180 - shift_angle) * -1,
+                                                     point_0_a)
+
+        # Shift points to central zero
+        rotated_points[:, 0] = rotated_points[:, 0] - rotated_points[0, 0]
+        rotated_points[:, 1] = rotated_points[:, 1] - rotated_points[0, 1]
+
+        return rotated_points
+    
+    @staticmethod
+    def calc_distance(point1, point2):
+        """
+        points shold be like: [x, y]
+        
+        this function returns distance of two points 
+        """
+        x0, y0 = point1[0], point1[1]
+        x1, y1 = point2[0], point2[1]
+        d = np.sqrt((x0-x1)**2 + (y0-y1)**2  )
+        return d
 
 
 # %%
@@ -513,7 +647,6 @@ if __name__ == '__main__':
     
     video_name = "sc01.mp4"
     frame_jump = 5
-
     ## For algorithm tuning
     # Are for optime
     kernel = np.ones((5,5),np.uint8)
@@ -544,9 +677,11 @@ if __name__ == '__main__':
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
 
     measure = [] # for storing angles
+    measure_pos = [] # for storing joint positions
     frames_to_store = []
     cnt = frame_shift # for storing frame count
     whether_firstframe = True
+    calc_intersection = True
 
     # Videos capture cycles
     while True:
@@ -558,10 +693,10 @@ if __name__ == '__main__':
 
         if cnt==frame_shift: tracker.acquire_marker_color(frame)
         if whether_firstframe:
-            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
+            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
             whether_firstframe = False
         else:
-            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
+            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
 
         # # Use the original frame instead of creating a copy
         # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
@@ -576,6 +711,9 @@ if __name__ == '__main__':
         end = time.time()
         frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
         measure.append([cnt, angle_0,angle_1,angle_2])
+        if calc_intersection:
+            tracker.angle_pos.insert(0, cnt)
+            measure_pos.append(tracker.angle_pos)
         
         frames_to_store.append(frame.copy())
         cnt += 1
