@@ -66,6 +66,11 @@ class AngleTracker(object): # TODO
         self.load_point_pos()
         self.angle_pos = []
 
+        self.fingertip_pos = []
+        self.angle0_pos = []
+        self.angle0_pos = []
+        self.angle0_pos = []
+
         pass
         
     def add_text_to_frame(self,frame, text, position=(30, 30), font=cv2.FONT_HERSHEY_DUPLEX, font_scale=0.2, color=(0, 255, 0), thickness=2):
@@ -426,7 +431,11 @@ class AngleTracker(object): # TODO
                     # angle0_pos = blue_pos[1]
                 self.angle_pos = AngleTracker.relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos)
                 # self.angle_pos = AngleTracker.rotate_frame_tracked_points(self.angle_pos[3], self.angle_pos[0], self.angle_pos[1], self.angle_pos[2])
-            
+                self.fingertip_pos.append(self.angle_pos[0])
+                self.angle0_pos.append(self.angle_pos[1])
+                self.angle1_pos.append(self.angle_pos[2])
+                self.angle2_pos.append(self.angle_pos[3])
+
             _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
             frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format((angle_0)), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
@@ -533,24 +542,44 @@ class AngleTracker(object): # TODO
         A = np.array([[a00, a01],
                       [a10, a11]])
         B = np.array([b0, b1])
+
         x = np.linalg.solve(A, B) #intersection of lines
         return x
     
     @staticmethod
     def relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos):
-        fingertip_pos = fingertip_pos - angle2_pos
-        angle0_pos = angle0_pos - angle2_pos
-        angle1_pos = angle1_pos - angle2_pos
+        fingertip_pos = np.array(fingertip_pos - angle2_pos)
+        angle0_pos = np.array(angle0_pos - angle2_pos)
+        angle1_pos = np.array(angle1_pos - angle2_pos)
         angle2_pos = np.array([0, 0])
         return [fingertip_pos, angle0_pos, angle1_pos, angle2_pos]
 
-    def save_trajectory(self, measure, set_fps = 30):
-        df_pos = pd.DataFrame(data = measure, columns=["frame", "Fingertip", "DIP", "PIP", "MP"])
-        df_pos["time"] = df_pos["frame"]/set_fps
-        df_pos.to_csv(os.path.join(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted_trajectory.csv")))
-        np_data = np.array(measure)[:, ::-1]
-        saveFigure(np_data,f"{video_name.split('.')[0]}_extracted_trajectory.csv", ["angle_2", "angle_1", "angle_0", "frame"],
-                   show_img=False, figure_mode='Single' )
+    # def save_trajectory(self, set_fps = 30):
+        # df_pos = pd.DataFrame(data = measure, columns=["frame", "DIP", "PIP"])
+        # df_pos["time"] = df_pos["frame"]/set_fps
+        # df_pos.to_csv(os.path.join(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted_trajectory.csv")))
+        # np_data = np.array(measure)[]
+        # saveFigure(np_data,f"{video_name.split('.')[0]}_extracted_trajectory.csv", ["angle_2", "angle_1", "angle_0", "frame"],
+        #            show_img=False, figure_mode='Single' )
+
+    def save_trajectory(self):
+        self.fingertip_pos = np.vstack(self.fingertip_pos)
+        self.angle0_pos = np.vstack(self.angle0_pos).T
+        self.angle1_pos = np.vstack(self.angle1_pos).T
+        self.angle2_pos = np.vstack(self.angle2_pos).T
+        plt.plot(self.fingertip_pos[0], self.fingertip_pos[1], label = 'fingertip')
+        plt.plot(self.angle0_pos[0], self.angle0_pos[1], label ='angle0')
+        plt.plot(self.angle1_pos[0], self.angle1_pos[1], label ='angle1')
+        plt.plot(self.angle2_pos[0], self.angle2_pos[1], label ='angle2')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+        save_dir = 
+        plt.savefig(os.path.join(save_dir, "trajectory.png"))
+
+
+
+
 
     @staticmethod
     def rotate_coordinates(points, angle, center=(0, 0)):
@@ -677,7 +706,6 @@ if __name__ == '__main__':
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
 
     measure = [] # for storing angles
-    measure_pos = [] # for storing joint positions
     frames_to_store = []
     cnt = frame_shift # for storing frame count
     whether_firstframe = True
@@ -711,13 +739,13 @@ if __name__ == '__main__':
         end = time.time()
         frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
         measure.append([cnt, angle_0,angle_1,angle_2])
-        if calc_intersection:
-            tracker.angle_pos.insert(0, cnt)
-            measure_pos.append(tracker.angle_pos)
         
+        if calc_intersection:
+
+            pass
+
         frames_to_store.append(frame.copy())
         cnt += 1
-
         if frame_jump == 0:
             pass
         elif not cnt % frame_jump ==0 :
@@ -739,4 +767,5 @@ if __name__ == '__main__':
     
     tracker.store_video(frames_to_store,output_video_fps)
     tracker.store_data(measure,output_video_fps)
+    if calc_intersection: tracker.save_trajectory()
     print(tracker.video_pos_file_url)
