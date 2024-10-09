@@ -545,10 +545,10 @@ class AngleTracker(object): # TODO
         return [fingertip_pos, angle0_pos, angle1_pos, angle2_pos]
 
     def save_trajectory(self, measure, set_fps = 30):
-        df_pos = pd.DataFrame(data = measure, columns=["frame", "DIP", "PIP"])
+        df_pos = pd.DataFrame(data = measure, columns=["frame", "Fingertip", "DIP", "PIP", "MP"])
         df_pos["time"] = df_pos["frame"]/set_fps
         df_pos.to_csv(os.path.join(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted_trajectory.csv")))
-        np_data = np.array(measure)[]
+        np_data = np.array(measure)[:, ::-1]
         saveFigure(np_data,f"{video_name.split('.')[0]}_extracted_trajectory.csv", ["angle_2", "angle_1", "angle_0", "frame"],
                    show_img=False, figure_mode='Single' )
 
