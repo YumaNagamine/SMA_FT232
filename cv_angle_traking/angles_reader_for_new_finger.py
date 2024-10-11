@@ -31,9 +31,9 @@ class AngleTracker(object): # TODO
         self.threshold_area_size = [50,30,50,150]
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
         if self.color_mode ==0: # Lab
-            self.maker_tolerance_L = [30,20,25,10]#int(0.08 * 255)
-            self.maker_tolerance_a = [20,20,20,20]# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = [30,20,15,15]# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)
+            self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [40,20,15,30]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
@@ -314,7 +314,7 @@ class AngleTracker(object): # TODO
         cv2.imshow("Choose", frame)
         return []
 
-    def extract_angle(self, frame, whether_firstframe, calc_intersection = True):
+    def extract_angle(self, frame, whether_firstframe, calc_intersection):
         # Convert the input frame to the CIELAB color space
 
         cielab_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
@@ -594,14 +594,17 @@ class AngleTracker(object): # TODO
         self.angle1_pos = np.vstack(self.angle1_pos)
         self.angle2_pos = np.vstack(self.angle2_pos)
         fig = plt.figure(layout="tight")
-        # plt.plot(self.fingertip_pos.T[0][1:], self.fingertip_pos.T[1][1:], label = 'fingertip')
-        # plt.plot(self.angle0_pos.T[0][1:], self.angle0_pos.T[1][1:], label ='angle0')
-        # plt.plot(self.angle1_pos.T[0][1:], self.angle1_pos.T[1][1:], label ='angle1')
-        # plt.plot(self.angle2_pos.T[0][1:], self.angle2_pos.T[1][1:], label ='angle2')
-        plt.scatter(self.fingertip_pos.T[0][1:], self.fingertip_pos.T[1][1:], label = 'fingertip', s=15)
-        plt.scatter(self.angle0_pos.T[0][1:], self.angle0_pos.T[1][1:], label ='angle0', s=15)
-        plt.scatter(self.angle1_pos.T[0][1:], self.angle1_pos.T[1][1:], label ='angle1', s=15)
-        plt.scatter(self.angle2_pos.T[0][1:], self.angle2_pos.T[1][1:], label ='angle2', s=20)
+        scatter = False
+        if scatter == True:
+            plt.scatter(self.fingertip_pos.T[0][1:], self.fingertip_pos.T[1][1:], label = 'fingertip', s=15)
+            plt.scatter(self.angle0_pos.T[0][1:], self.angle0_pos.T[1][1:], label ='angle0', s=15)
+            plt.scatter(self.angle1_pos.T[0][1:], self.angle1_pos.T[1][1:], label ='angle1', s=15)
+            plt.scatter(self.angle2_pos.T[0][1:], self.angle2_pos.T[1][1:], label ='angle2', s=20)
+        else:    
+            plt.plot(self.fingertip_pos.T[0][1:], self.fingertip_pos.T[1][1:], label = 'fingertip')
+            plt.plot(self.angle0_pos.T[0][1:], self.angle0_pos.T[1][1:], label ='angle0')
+            plt.plot(self.angle1_pos.T[0][1:], self.angle1_pos.T[1][1:], label ='angle1')
+            plt.plot(self.angle2_pos.T[0][1:], self.angle2_pos.T[1][1:], label ='angle2')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.legend()
@@ -752,12 +755,13 @@ if __name__ == '__main__':
         frame = tracker.trim_frame(frame)
 
         if cnt==frame_shift: tracker.acquire_marker_color(frame)
+
         if whether_firstframe:
             frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
             whether_firstframe = False
         else:
             frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
-            print("fingertip(abs):", tracker.referenceFingertip)
+            if calc_intersection: print("fingertip(abs):", tracker.referenceFingertip)
         # # Use the original frame instead of creating a copy
         # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
         # except Exception as err: continue
@@ -797,9 +801,10 @@ if __name__ == '__main__':
     # Set the desired output video path
     
     tracker.store_video(frames_to_store,output_video_fps)
-    # tracker.store_data(measure,output_video_fps)
     if calc_intersection:
         print("fingertip(to MCP):", tracker.fingertip_pos)
         print("angle1(to MCP):",tracker.angle1_pos)
         tracker.save_trajectory()
+    else:
+        tracker.store_data(measure,output_video_fps)
     print(tracker.video_pos_file_url)
