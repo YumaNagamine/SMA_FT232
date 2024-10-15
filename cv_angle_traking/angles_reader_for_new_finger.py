@@ -70,10 +70,10 @@ class AngleTracker(object): # TODO
         # self.angle0_pos = []
         # self.angle1_pos = []
         # self.angle2_pos = []
-        self.fingertip_pos = np.array([0,0])
-        self.angle0_pos = np.array([0,0])
-        self.angle1_pos = np.array([0,0])
-        self.angle2_pos = np.array([0,0])
+        self.fingertip_pos_list = np.array([0,0])
+        self.angle0_pos_list = np.array([0,0])
+        self.angle1_pos_list = np.array([0,0])
+        self.angle2_pos_list = np.array([0,0])
 
         pass
         
@@ -120,23 +120,46 @@ class AngleTracker(object): # TODO
             cosine_theta = dot_product / (magnitude1 * magnitude2)
 
             # Determine the sign of the dot product to determine the direction
-            if dot_product > 0:
-                angle_radians = np.arccos(cosine_theta)
-                # Convert the angle to degrees
-                angle_degrees = 180 - np.degrees(angle_radians)
-                # Adjust angle for the cross product sign
-                if cross_product < 0:
-                    angle_degrees = 360 - angle_degrees
-            else:
-                angle_radians = np.arccos(cosine_theta)
-                # Convert the angle to degrees
-                angle_degrees = np.degrees(angle_radians)
+            if index == 0 or index == 1:
+                if dot_product > 0:
+                    angle_radians = np.arccos(cosine_theta)
+                    # Convert the angle to degrees
+                    angle_degrees = 180 - np.degrees(angle_radians)
+                    # Adjust angle for the cross product sign
+                    if cross_product < 0:
+                        angle_degrees = 360 - angle_degrees
+                else:
+                    angle_radians = np.arccos(cosine_theta)
+                    # Convert the angle to degrees
+                    angle_degrees = np.degrees(angle_radians)
+            elif index == 2:
+                if self.temp_green_y < self.temp_yellow_y: # 90 < angle2 < 180
+                    if dot_product > 0:
+                        angle_radians = np.arccos(cosine_theta)
+                        # Convert the angle to degrees
+                        angle_degrees = 180 - np.degrees(angle_radians)
+                        # Adjust angle for the cross product sign
+                        # if cross_product < 0:
+                        #     angle_degrees = 360 - angle_degrees
+                    else: 
+                        angle_radians = np.arccos(cosine_theta)
+                        # Convert the angle to degrees
+                        angle_degrees = np.degrees(angle_radians) 
+
+                else: #angle2 > 180
+                    if dot_product <= 0:
+                        angle_radians = np.arccos(cosine_theta)
+                        angle_degrees = 360 - np.degrees(angle_radians) 
+                    else:
+                        angle_radians = np.arccos(cosine_theta)
+                        angle_degrees = 180 + np.degrees(angle_radians)
         except Exception as err:
             return []
-        if index == 0 or index == 1 or index == 2:
+
+
+        if index == 0 or index == 1 :#or index == 2:
             if angle_degrees > 180:
                 angle_degrees = 360 - angle_degrees
-        else:pass
 
         return angle_degrees
     
@@ -375,7 +398,11 @@ class AngleTracker(object): # TODO
                     # Append the centroid to the list of points for the mask
                     point_per_mask.append((centroid_x, centroid_y))
                     if color == (255,0,0): #blue
-                        blue_pos.append((centroid_x, centroid_y))                        
+                        blue_pos.append((centroid_x, centroid_y))
+                    if color == (0,127,0): #green 
+                        self.temp_green_y = centroid_y
+                    if color == (0,127,255):#yellow
+                        self.temp_yellow_y = centroid_y                    
                 
                 # Visualize circles for each point in the mask
                 for idx, point in enumerate(point_per_mask):
@@ -449,10 +476,10 @@ class AngleTracker(object): # TODO
                 # self.angle0_pos.append(self.angle_pos[1])
                 # self.angle1_pos.append(self.angle_pos[2])
                 # self.angle2_pos.append(self.angle_pos[3])
-                self.fingertip_pos = np.vstack((self.fingertip_pos, self.angle_pos[0]))
-                self.angle0_pos = np.vstack((self.angle0_pos, self.angle_pos[1]))
-                self.angle1_pos = np.vstack((self.angle1_pos, self.angle_pos[2]))
-                self.angle2_pos = np.vstack((self.angle2_pos, self.angle_pos[3]))
+                self.fingertip_pos_list = np.vstack((self.fingertip_pos_list, self.angle_pos[0]))
+                self.angle0_pos_list = np.vstack((self.angle0_pos_list, self.angle_pos[1]))
+                self.angle1_pos_list = np.vstack((self.angle1_pos_list, self.angle_pos[2]))
+                self.angle2_pos_list = np.vstack((self.angle2_pos_list, self.angle_pos[3]))
                 print("fingertip pos:", fingertip_pos)
                 print("angle0 pos:", angle0_pos)
                 print("angle1 pos:", angle1_pos)
@@ -467,11 +494,12 @@ class AngleTracker(object): # TODO
         # except Exception as err:
         #     print(color_name,' Failed!:',err)
         #     return frame,[],[],[]
-            if whether_firstframe:
-                self.prev_angles = [angle_0, angle_1, angle_2]
-                self.current_angles = [angle_0, angle_1, angle_2]
-            else: frame = self.detect_cv_error(frame, 30, angle_0, angle_1, angle_2)
-            angle_0, angle_1, angle_2 = self.current_angles[0], self.current_angles[1], self.current_angles[2]
+            if False:
+                if whether_firstframe:
+                    self.prev_angles = [angle_0, angle_1, angle_2]
+                    self.current_angles = [angle_0, angle_1, angle_2]
+                else: frame = self.detect_cv_error(frame, 30, angle_0, angle_1, angle_2)
+                angle_0, angle_1, angle_2 = self.current_angles[0], self.current_angles[1], self.current_angles[2]
 
         return frame, angle_0, angle_1, angle_2
     
@@ -530,7 +558,8 @@ class AngleTracker(object): # TODO
         out.release()
     
     def trim_frame(self, frame):
-        frame = frame[0:975, 0:1300]
+        # frame = frame[0:975, 0:1300]
+        frame = frame[0:1200 , 0:1300]
         return frame
     
     def detect_cv_error(self,frame, error_detector, angle_0, angle_1, angle_2):
@@ -569,7 +598,9 @@ class AngleTracker(object): # TODO
         B = np.array([b0, b1])
 
         x = np.linalg.solve(A, B) #intersection of lines
-        return 10*np.round(x/10)
+
+        # return 10*np.round(x/10)
+        return x    
     
     @staticmethod
     def relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos):
@@ -589,22 +620,24 @@ class AngleTracker(object): # TODO
 
 
     def save_trajectory(self):
-        self.fingertip_pos = np.vstack(self.fingertip_pos)
-        self.angle0_pos = np.vstack(self.angle0_pos)
-        self.angle1_pos = np.vstack(self.angle1_pos)
-        self.angle2_pos = np.vstack(self.angle2_pos)
+        self.fingertip_pos_list = np.vstack(self.fingertip_pos_list)
+        self.angle0_pos_list = np.vstack(self.angle0_pos_list)
+        self.angle1_pos_list = np.vstack(self.angle1_pos_list)
+        self.angle2_pos_list = np.vstack(self.angle2_pos_list)
         fig = plt.figure(layout="tight")
-        scatter = False
+        scatter = True
         if scatter == True:
-            plt.scatter(self.fingertip_pos.T[0][1:], self.fingertip_pos.T[1][1:], label = 'fingertip', s=15)
-            plt.scatter(self.angle0_pos.T[0][1:], self.angle0_pos.T[1][1:], label ='angle0', s=15)
-            plt.scatter(self.angle1_pos.T[0][1:], self.angle1_pos.T[1][1:], label ='angle1', s=15)
-            plt.scatter(self.angle2_pos.T[0][1:], self.angle2_pos.T[1][1:], label ='angle2', s=20)
+            L = len(self.fingertip_pos_list) - 1 
+            value = np.linspace(0, 1, L)
+            plt.scatter(self.fingertip_pos_list.T[0][1:], self.fingertip_pos_list.T[1][1:], label = 'fingertip', s=15)#, c=value, cmap='winter')
+            plt.scatter(self.angle0_pos_list.T[0][1:], self.angle0_pos_list.T[1][1:], label ='angle0', s=15)#, c=value, cmap='winter')
+            plt.scatter(self.angle1_pos_list.T[0][1:], self.angle1_pos_list.T[1][1:], label ='angle1', s=15)#, c=value, cmap='winter')
+            plt.scatter(self.angle2_pos_list.T[0][1:], self.angle2_pos_list.T[1][1:], label ='angle2', s=20)#, c=value, cmap='winter')
         else:    
-            plt.plot(self.fingertip_pos.T[0][1:], self.fingertip_pos.T[1][1:], label = 'fingertip')
-            plt.plot(self.angle0_pos.T[0][1:], self.angle0_pos.T[1][1:], label ='angle0')
-            plt.plot(self.angle1_pos.T[0][1:], self.angle1_pos.T[1][1:], label ='angle1')
-            plt.plot(self.angle2_pos.T[0][1:], self.angle2_pos.T[1][1:], label ='angle2')
+            plt.plot(self.fingertip_pos_list.T[0][1:], self.fingertip_pos_list.T[1][1:], label = 'fingertip')
+            plt.plot(self.angle0_pos_list.T[0][1:], self.angle0_pos_list.T[1][1:], label ='angle0')
+            plt.plot(self.angle1_pos_list.T[0][1:], self.angle1_pos_list.T[1][1:], label ='angle1')
+            plt.plot(self.angle2_pos_list.T[0][1:], self.angle2_pos_list.T[1][1:], label ='angle2')
         plt.xlabel('x')
         plt.ylabel('y')
         plt.legend()
@@ -802,8 +835,8 @@ if __name__ == '__main__':
     
     tracker.store_video(frames_to_store,output_video_fps)
     if calc_intersection:
-        print("fingertip(to MCP):", tracker.fingertip_pos)
-        print("angle1(to MCP):",tracker.angle1_pos)
+        print("fingertip(to MCP):", tracker.fingertip_pos_list)
+        print("angle1(to MCP):",tracker.angle1_pos_list)
         tracker.save_trajectory()
     else:
         tracker.store_data(measure,output_video_fps)
