@@ -29,7 +29,7 @@ class AngleTracker(object): # TODO
         self.num_maker_sets = 4
         self.denoising_mode = denoising_mode# 'monocolor'
         self.threshold_area_size = [50,30,50,150]
-        self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
+        self.colors = [(255,0,0), (127,0,255), (255,0,255),(0,127,255)]
         if self.color_mode ==0: # Lab
             self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)
             self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green

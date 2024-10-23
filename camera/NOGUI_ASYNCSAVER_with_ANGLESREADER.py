@@ -70,13 +70,13 @@ class AngleTracker(AsyncVideoSaver):
         self.denoising_mode = 0# denoising_mode# 'monocolor'
         self.cv_choose_wd_name = "Choose"
         self.threshold_area_size = [50, 30, 50, 150]
-        self.colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)] 
+        self.colors = [(255,0,0), (127,0,255), (255,0,255), (0,127,255)] 
         self.video_pos_file_url = "C:/Users/SAWALAB/Desktop/projects/SMA_FT232/LOG/realtime/pos.json"
 
         if self.color_mode == 0: # Lab
-            self.maker_tolerance_L = [70,20,20,10]#int(0.08 * 255)q
-            self.maker_tolerance_a = [30,20,17,20]# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = [30,20,15,15]# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)q
+            self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [40,20,15,30]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
