@@ -30,3 +30,46 @@ def slope_func(x, left, right):
     elif x >= right[0]:
         y = right[1]
     return y
+
+def normal_three_membership(x, tri_param, up_param, down_param): # consist of downhill, triangle, uphill
+    # tri_param = [[][][]]
+    # up_param, down_param = [[][]]
+    y_tri = triangle_func(x, tri_param[0],tri_param[1],tri_param[2])
+    y_up = slope_func(x, up_param[0],up_param[1])
+    y_down = slope_func(x, down_param[0], down_param[1])
+    y = np.array([y_tri, y_up, y_down])
+    return y
+
+def three_triangles(x, left_param, middle_param, right_param):
+    pass
+def calc_centroid(x, y0, y1, y2, dx): # y is array
+    y = np.maximum.reduce([y0, y1, y2])
+    num = np.sum(x*y*dx)
+    den = np.sum(y*dx)
+    centroid = num/den
+    return centroid
+def weighting(weights, membership_degree):
+    weights = np.array(weights)
+    membership_degree = np.array(membership_degree)
+
+    diag = np.diag(weights@membership_degree)
+    den = np.sum(diag)
+    membership_degree = membership_degree / den
+
+    return membership_degree
+def test(x):
+    y = - x**2 - 2*x + 3
+    return y
+
+if __name__ == '__main__':
+    # x = np.linspace(-3,1,num = 100)
+    # y = test(x)
+ 
+    # center = calc_centroid(x, y, y, y)
+    # print(center)
+
+    x=10
+    y = np.array([11,-11,12,1])
+    y[1] = 1212
+    print(y)
+    pass
