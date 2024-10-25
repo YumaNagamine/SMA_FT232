@@ -235,9 +235,9 @@ class exprimentGUI():
             return []
 
         except Exception as err:
-            print('Video frame load from thread manager failed: ')
-            print('\tDue to:',err)
-            print('Tring again ... ...')
+            print('\rVideo frame load from thread manager failed: ', end='')
+            print('\tDue to:',err, end='')
+            print('Tring again ... ...', end='')
             self.root_window.after(1000,self.refresh_img)
 
     def make_thread(self, func, *args):
@@ -257,7 +257,9 @@ class exprimentGUI():
         # url_0 = os.environ.get('FTDI_DEVICE', 'ftdi://ftdi:232h:0:FF/0')
         actuator_device = []
         for _i in range(url_test_len):
-            _url = os.environ.get('FTDI_DEVICE', 'ftdi://ftdi:232h:0:F'+ hex(0xF-_i)[-1]+'/0')
+            # _url = os.environ.get('FTDI_DEVICE', 'ftdi://ftdi:232h:0:F'+ hex(0xF-_i)[-1]+'/1')
+            _url = os.environ.get('FTDI_DEVICE', 'ftdi:///1')
+
             try: 
                 print("\nConnecting: ",_url)
                 actuator_device = ctrlProcess(_url,'ADC001')

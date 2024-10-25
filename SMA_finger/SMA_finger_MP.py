@@ -25,9 +25,7 @@ from lib.GENERALFUNCTIONS import *
 
 
 # Test settings
-import pyftdimod.ftdi as ftdi
-
-#import pyftdi.ftdi as ftdi
+import pyftdimod.ftdi as ftdi 
 from multiprocessing import  Process
 
 
@@ -149,7 +147,7 @@ if __name__=='__main__': # Test codes # Main process
 
     # Log experiment details
         # console recoder
-        # data logger
+        # data loggers
         # expriment setting log  
 
     # Start of IIC comunication
