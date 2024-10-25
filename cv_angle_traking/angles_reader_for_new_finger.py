@@ -1,4 +1,5 @@
 # %%
+# To extract joint trajectory and angle transition from exisiting video
 import time,os
 os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 import cv2
@@ -29,7 +30,7 @@ class AngleTracker(object): # TODO
         self.num_maker_sets = 4
         self.denoising_mode = denoising_mode# 'monocolor'
         self.threshold_area_size = [50,30,50,150]
-        self.colors = [(255,0,0), (127,0,255), (255,0,255),(0,127,255)]
+        self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
         if self.color_mode ==0: # Lab
             self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)
             self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green
@@ -133,7 +134,7 @@ class AngleTracker(object): # TODO
                     # Convert the angle to degrees
                     angle_degrees = np.degrees(angle_radians)
             elif index == 2:
-                if self.temp_green_y < self.temp_yellow_y: # 90 < angle2 < 180
+                if self.temp_purple_y < self.temp_yellow_y: # 90 < angle2 < 180
                     if dot_product > 0:
                         angle_radians = np.arccos(cosine_theta)
                         # Convert the angle to degrees
@@ -399,8 +400,8 @@ class AngleTracker(object): # TODO
                     point_per_mask.append((centroid_x, centroid_y))
                     if color == (255,0,0): #blue
                         blue_pos.append((centroid_x, centroid_y))
-                    if color == (0,127,0): #green 
-                        self.temp_green_y = centroid_y
+                    if color == (0,127,0): #purple
+                        self.temp_purple_y = centroid_y
                     if color == (0,127,255):#yellow
                         self.temp_yellow_y = centroid_y                    
                 
