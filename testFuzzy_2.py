@@ -1,8 +1,8 @@
 import numpy as np
 import time
 import membership_function as mf
-import 
-
+# from cv_angle_traking.angles_reader_for_new_finger import AngleTracker
+from camera.NOGUI_ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker
 # By searching for "adjust" (Ctrl + F) you can find parameters to adjust
 
 # output vector du assumes [flexor0, flexor1, mainextensor, subextensor0, subextensor1, ooo, ooo]
@@ -182,9 +182,99 @@ class FUZZYCONTROL():
         return
     
 if __name__ == "__main__":
-    f = FUZZYCONTROL()
-    target_angles = [135, 135, 200]
-    f.input_target(target_angles)
+    import os,sys
+    import cv2
+    parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sys.path.insert(0,parentdir)
+    from lib.GENERALFUNCTIONS import *
+    from collections import deque
+
+
+    os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
+
+    cam_num =  0
+    
+    is_lighting = True
+    is_recod_video = True    
+    cam_name = 'AR0234' # 'OV7251' #  
+    
+    cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT
+
+    if cam_name == 'AR0234': # Aptina AR0234
+        target_fps = 90
+        resolution =  (1600,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
+        width, height = resolution
+
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0]) 
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, resolution[1])
+        # Set FPS
+        cap.set(cv2.CAP_PROP_FPS,target_fps)
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG')) # 'I420'
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)  # 设置缓冲区大小为2
+        
+        if is_lighting:            # 曝光控制
+            # 设置曝光模式为手动
+            cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # 0.25表示手动模式，0.75表示自动模式
+            cap.set(cv2.CAP_PROP_GAIN, 0)  # 调整增益值，具体范围取决于摄像头
+            cap.set(cv2.CAP_PROP_EXPOSURE, -11)  # 设置曝光值，负值通常表示较短的曝光时间
+        else:            
+            cap.set(cv2.CAP_PROP_GAIN, 0)  # 调整增益值，具体范围取决于摄像头
+            cap.set(cv2.CAP_PROP_EXPOSURE, -3)  # 设置曝光值，负值通常表示较短的曝光时间
+        # Save video
+        fourcc = 'X264'#'MJPG' # 'I420' X264
+
+    if fourcc == 'X264':  
+        video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
+    
+    if is_recod_video: saver = AngleTracker(video_file_name,fourcc, target_fps, resolution, 'monocolor')
+
+    frame_id = 0
+    whether_firstframe = True
+
+    # 初始化时间戳队列^^^^---^
+    frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
+
+    cv_preview_wd_name = 'Video Preview'
+    # cv_choose_wd_name = 'Choose'
+    # colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
+    cv2.namedWindow(cv_preview_wd_name, cv2.WINDOW_GUI_EXPANDED)
+    cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
+
+    fuzzy = FUZZYCONTROL()
+    tracker = AngleTracker()
+
     while True:
-        f.control_method()
-        pass
+        cur_time = time.perf_counter()
+        ret, frame_raw = cap.read()
+        if ret:
+            if is_recod_video: saver.add_frame(frame_raw)
+
+            if whether_firstframe:
+                saver.acquire_marker_color()
+                whether_firstframe = False
+            
+            frame_id += 1
+            frame_times.append(cur_time)
+
+            if True:
+                noneedframe, angle_0, angle_1, angle_2 = saver.extract_angle(False)
+                angles = [angle_0, angle_1, angle_2]
+
+                cv2.imshow('Video Preview', saver.frame)
+
+            if True:
+                if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
+                else : cur_fps = -1
+                cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{cur_time}',
+                             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
+                cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}',
+                             (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                
+
+        if cv2.waitKey(1) & 0xFF == ord('q'): break
+ 
+
+    cap.release()
+    cv2.destroyAllWindows()
+    if is_recod_video: saver.finalize()
