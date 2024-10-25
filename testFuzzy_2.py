@@ -152,7 +152,8 @@ class FUZZYCONTROL():
 
         
         # get arrays of output_membership
-        number_of_step = (du_max-du_min)*100
+        fine = 100 # can be adjusted. The bigger, the greater calculation cost. 
+        number_of_step = (du_max-du_min)*fine  
         x = np.linspace(du_min, du_max, num=number_of_step)
         y0 = np.vectorize(mf.triangle_func)(x, param_output_0[0][0], param_output_0[0][1],param_output_0[0][2]) #left : du < 0 
         y1 = np.vectorize(mf.triangle_func)(x, param_output_0[1][0], param_output_0[1][1],param_output_0[1][2]) #middle: du ~ 0
