@@ -39,10 +39,23 @@ if False:
     exit()
 
 if True:
+
+    import sys
+    import usb.core
+    # find USB devices
+    dev = usb.core.find(find_all=True)
+    # loop through devices, printing vendor and product ids in decimal and hex
+    for cfg in dev:
+        sys.stdout.write('Decimal VendorID=' + str(cfg.idVendor) + ' & ProductID=' + str(cfg.idProduct) + '\n')
+        sys.stdout.write('Hexadecimal VendorID=' + hex(cfg.idVendor) + ' & ProductID=' + hex(cfg.idProduct) + '\n\n')
+
+
+
     # use I2C feature
     i2c = ftdii2c.I2cController()
     # configure the I2C feature, and predefines the direction of the GPIO pins
-    i2c.configure('ftdi:///1', direction=0x78)
+    url =  'ftdi:///1'
+    i2c.configure(url, direction=0x78)
     gpio = i2c.get_gpio()
 
     output_pins = 0b11111000
