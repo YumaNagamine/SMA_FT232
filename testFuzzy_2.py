@@ -21,6 +21,7 @@ class FUZZYCONTROL():
             print("Satisfy 90 < angle0 < 180")
             angle0 = int(input("angle0: "))
             err[0] = angle0 - current_angles[0]
+            print('err',err)
             if not 90 < angle0 < 180:
                 print("This angle is impossible. Try again...")
                 print()
@@ -89,6 +90,7 @@ class FUZZYCONTROL():
         self.err = err
         print("mode=", self.mode)
         print("errors= ", err)
+        return np.array([angle0, angle1, angle2])
 
     def control_method(self, err):
         if self.mode[0] == 'flex' and self.mode[1] == 'flex':
@@ -181,6 +183,10 @@ class FUZZYCONTROL():
         
         return
     
+    @staticmethod
+    def limit_dutyratio(dutyratio, upperlimit):
+        return np.clip(dutyratio, None, upperlimit)
+    
 if __name__ == "__main__":
     import os,sys
     import cv2
@@ -239,9 +245,11 @@ if __name__ == "__main__":
     # colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
     cv2.namedWindow(cv_preview_wd_name, cv2.WINDOW_GUI_EXPANDED)
     cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
-
+    filename = 'no meaning'
     fuzzy = FUZZYCONTROL()
-    tracker = AngleTracker()
+    tracker = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor')
+    control = True
+
 
     while True:
         cur_time = time.perf_counter()
@@ -251,16 +259,20 @@ if __name__ == "__main__":
 
             if whether_firstframe:
                 saver.acquire_marker_color()
+                firstangle = [saver.first_angles[1], saver.first_angles[2], saver.first_angles[3]]
+                print('first angle:',firstangle)
+                target = fuzzy.input_target(firstangle)
                 whether_firstframe = False
+            
+            if True:
+                noneedframe, angle_0, angle_1, angle_2 = saver.extract_angle()
+                angles = np.array([angle_0, angle_1, angle_2])
+                currrent_error =  angles - target
+                cv2.imshow('Video Preview', saver.frame)
             
             frame_id += 1
             frame_times.append(cur_time)
 
-            if True:
-                noneedframe, angle_0, angle_1, angle_2 = saver.extract_angle(False)
-                angles = [angle_0, angle_1, angle_2]
-
-                cv2.imshow('Video Preview', saver.frame)
 
             if True:
                 if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
@@ -271,6 +283,8 @@ if __name__ == "__main__":
                 cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}',
                              (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 
+            if control:
+                du = fuzzy.control_method(err)
 
         if cv2.waitKey(1) & 0xFF == ord('q'): break
  

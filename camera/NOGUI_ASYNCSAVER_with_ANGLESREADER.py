@@ -70,7 +70,7 @@ class AngleTracker(AsyncVideoSaver):
         self.denoising_mode = 0# denoising_mode# 'monocolor'
         self.cv_choose_wd_name = "Choose"
         self.threshold_area_size = [50, 30, 50, 150]
-        self.colors = [(255,0,0), (127,0,255), (255,0,255), (0,127,255)] 
+        self.colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)] 
         self.video_pos_file_url = "C:/Users/SAWALAB/Desktop/projects/SMA_FT232/LOG/realtime/pos.json"
 
         if self.color_mode == 0: # Lab
@@ -118,7 +118,7 @@ class AngleTracker(AsyncVideoSaver):
         cv2.putText(frame_with_text, text, position, font, font_scale, color, thickness)
         return frame_with_text
     
-    def calculate_angle(self,line1, line2):
+    def calculate_angle(self,line1, line2, index):
         try:
             # Convert lines to numpy arrays
             line1 = np.array(line1)
@@ -135,24 +135,51 @@ class AngleTracker(AsyncVideoSaver):
             # Calculate the magnitudes of the vectors
             magnitude1 = np.linalg.norm(vector1)
             magnitude2 = np.linalg.norm(vector2)
-
             # Calculate the cosine of the angle between the vectors
             cosine_theta = dot_product / (magnitude1 * magnitude2)
 
             # Determine the sign of the dot product to determine the direction
-            if dot_product > 0:
-                angle_radians = np.arccos(cosine_theta)
-                # Convert the angle to degrees
-                angle_degrees = 180 - np.degrees(angle_radians)
-                # Adjust angle for the cross product sign
-                if cross_product < 0:
-                    angle_degrees = 360 - angle_degrees
-            else:
-                angle_radians = np.arccos(cosine_theta)
-                # Convert the angle to degrees
-                angle_degrees = np.degrees(angle_radians)
+            if index == 0 or index == 1:
+                if dot_product > 0:
+                    angle_radians = np.arccos(cosine_theta)
+                    # Convert the angle to degrees
+                    angle_degrees = 180 - np.degrees(angle_radians)
+                    # Adjust angle for the cross product sign
+                    if cross_product < 0:
+                        angle_degrees = 360 - angle_degrees
+                else:
+                    angle_radians = np.arccos(cosine_theta)
+                    # Convert the angle to degrees
+                    angle_degrees = np.degrees(angle_radians)
+
+            elif index == 2:
+                if self.temp_purple_y < self.temp_yellow_y: # 90 < angle2 < 180
+                    if dot_product > 0:
+                        angle_radians = np.arccos(cosine_theta)
+                        # Convert the angle to degrees
+                        angle_degrees = 180 - np.degrees(angle_radians)
+                        # Adjust angle for the cross product sign
+                        # if cross_product < 0:
+                        #     angle_degrees = 360 - angle_degrees
+                    else: 
+                        angle_radians = np.arccos(cosine_theta)
+                        # Convert the angle to degrees
+                        angle_degrees = np.degrees(angle_radians) 
+
+                else: #angle2 > 180
+                    if dot_product <= 0:
+                        angle_radians = np.arccos(cosine_theta)
+                        angle_degrees = 360 - np.degrees(angle_radians) 
+                    else:
+                        angle_radians = np.arccos(cosine_theta)
+                        angle_degrees = 180 + np.degrees(angle_radians)
+
         except Exception as err:
             return []
+        if index == 0 or index == 1:
+            if angle_degrees > 180:
+                angle_degrees = 360 - angle_degrees
+
         return angle_degrees
     
     @staticmethod
@@ -266,11 +293,11 @@ class AngleTracker(AsyncVideoSaver):
         # os.system('pause')
         cv2.destroyWindow("Choose")
 
-        self.first_angles = self.extract_angle(False)
+        self.first_angles = self.extract_angle()
 
         return marker_rangers 
 
-    def extract_angle(self, swap):
+    def extract_angle(self):
         # Convert the input frame to the CIELAB color space
 
         cielab_frame = cv2.cvtColor(self.frame, cv2.COLOR_RGB2Lab)
@@ -329,6 +356,11 @@ class AngleTracker(AsyncVideoSaver):
 
                     # Append the centroid to the list of points for the mask
                     point_per_mask.append((centroid_x, centroid_y))
+ 
+                    if color == (0,127,0): #purple
+                        self.temp_purple_y = centroid_y
+                    if color == (0,127,255): #yellow
+                        self.temp_yellow_y = centroid_y
                 
                 # Visualize circles for each point in the mask
                 for idx, point in enumerate(point_per_mask):
@@ -369,9 +401,9 @@ class AngleTracker(AsyncVideoSaver):
 
             # Calculate angles between consecutive lines
             # print(makerset_per_frame)
-            angle_0 = self.calculate_angle(makerset_per_frame[0], makerset_per_frame[1])
-            angle_1 = self.calculate_angle(makerset_per_frame[1], makerset_per_frame[2])
-            angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3])
+            angle_0 = self.calculate_angle(makerset_per_frame[0], makerset_per_frame[1], 0)
+            angle_1 = self.calculate_angle(makerset_per_frame[1], makerset_per_frame[2], 1)
+            angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3], 2)
 
             _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
@@ -587,7 +619,7 @@ if __name__ == "__main__":
             frame_times.append(cur_time)
 
             if True: #read angles
-                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(False)
+                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle()
                 angles = [angle_0, angle_1, angle_2]
                 # print(angles)
                 # process_share_dict['angles'] = [angle_0, angle_1, angle_2]
