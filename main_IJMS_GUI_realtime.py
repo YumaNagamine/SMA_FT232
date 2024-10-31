@@ -603,7 +603,7 @@ def process_camera(pid,process_share_dict={}):
             frame_times.append(cur_time)
 
             if True: #read angles
-                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle(False)
+                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle()
                 process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                 print(process_share_dict['angles'])
                 cv2.imshow('Video Preview', saver.frame)
