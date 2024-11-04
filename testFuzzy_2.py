@@ -381,8 +381,10 @@ if __name__ == "__main__":
     fuzzy = FUZZYCONTROL()
     tracker = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor')
     control = True
-    control_interval = 1 # duty ratio is added once per control_interval
+    control_interval = 1 # duty ratio adjustment interval
     visualize = True
+    record_angle = False
+
 
     
     while True:
@@ -400,12 +402,13 @@ if __name__ == "__main__":
                     target = fuzzy.input_target(firstangle)
                     if visualize: fuzzy.setting_visualize_functions_realtime()
                     timemeasure = time.perf_counter()
+                    initial_time = time.perf_counter()
                     # whether_firstframe = False
 
 
                 
                 if True:
-
+                    # read angles and calculate error
                     if frame_id == 0 or frame_id % control_interval == 0:
                         noneedframe, angle_0, angle_1, angle_2 = tracker.extract_angle()
                         angles = np.array([angle_0, angle_1, angle_2])
@@ -413,7 +416,7 @@ if __name__ == "__main__":
                         cv2.imshow('Video Preview', tracker.frame)
                 
                     
-                if control:
+                if control: # control part
                     if frame_id == 0 or frame_id % control_interval == 0: 
                         fuzzy.Fuzzy_process(angles, whether_firstframe)
                         whether_firstframe = False
@@ -424,7 +427,10 @@ if __name__ == "__main__":
 
                         if visualize:
                             fuzzy.visualize_functions_realtime(0.01, fuzzy.x, fuzzy.y1, fuzzy.y2)
-                        
+                if record_angle:
+                    time_for_record = time.perf_counter() - initial_time
+                    fuzzy.angle_recorder(time_for_record, angles)
+
                 frame_id += 1
                 frame_times.append(cur_time)
 
@@ -450,3 +456,4 @@ if __name__ == "__main__":
     cap.release()
     cv2.destroyAllWindows()
     if is_recod_video: tracker.finalize()
+    if record_angle: fuzzy.angle_plotter()
