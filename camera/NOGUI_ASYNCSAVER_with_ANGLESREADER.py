@@ -55,6 +55,9 @@ class AsyncVideoSaver(object):
         
         self.frame = frame 
 
+    def input_frame(self, frame):
+        self.frame = frame
+
     def finalize(self):
         if self.frame_queue:
             self.save_frame_batch(list(self.frame_queue))
