@@ -21,6 +21,15 @@ class FUZZYCONTROL():
         self.connect()
         self.angle_history = np.zeros(4)
 
+        print("\n\nFuzzy contorller established")
+
+        # test update speed
+        _st_ = time.perf_counter()
+        for _i in range(100):
+            for channels, ch_DR in zip(self.channels, self.output_levels):
+                self.actuator_device.setDutyRatioCH(channels, ch_DR, relax=False)
+        _t = 1/(-(_st_ - time.perf_counter())/100)
+        print("Tested PWM output update rate:",_t ,"Hz")
 
         pass
     def connect(self):
@@ -176,8 +185,8 @@ class FUZZYCONTROL():
         err = np.array(err)        
         du = np.zeros(7, dtype=np.float32)
         # adjust following parameters
-        du_min = -0.2
-        du_max = 0.2
+        du_min = -0.1
+        du_max = 0.1
         param_tri = np.array([[[-45,0], [0,1], [45,0]], # for angle0,1
                              [[-80,0], [0,1], [80,0]]]) # for angle2
         param_up = np.array([[[0,0], [90,1]], # for angle0,1
@@ -192,14 +201,14 @@ class FUZZYCONTROL():
 
         # adjust following parameters
         # for flexor0
-        param_output_0 = np.array([[[-0.1, 0],[-0.05, 1],[0,0]], # left triangle
-                                  [[-0.05,0],[0,1],[0.05, 0]], # middle triangle
-                                  [[0,0],[0.05, 1],[0.1, 0]]]) # right triangle
+        param_output_0 = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
+                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
+                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
         # for flexor1
-        param_output_1 = np.array([[[-0.1, 0],[-0.05, 1],[0,0]], # left triangle
-                                  [[-0.05,0],[0,1],[0.05, 0]], # middle triangle
-                                  [[0,0],[0.05, 1],[0.1, 0]]]) # right triangle
-
+        param_output_1 = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
+                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
+                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
+        
         weights_flexor0 = np.array([0,1,1])
         weights_flexor1 = np.array([1,1,1])
         membership_degree_flexor0 = mf.weighting(weights_flexor0, membership_degree)
@@ -207,11 +216,12 @@ class FUZZYCONTROL():
 
         
         # get arrays of output_membership
-        fine = 200 # can be adjusted. The bigger, the greater calculation cost. 
+        fine = 1000 
         number_of_step = (du_max-du_min)*fine  
         dx =  (du_max-du_min)/number_of_step
             
         x = np.linspace(du_min, du_max, num=int(number_of_step))
+
         self.x = x
         """
         y0 = np.vectorize(mf.triangle_func)(x, param_output_0[0][0], param_output_0[0][1],param_output_0[0][2]) #left : du < 0 
@@ -324,7 +334,7 @@ if __name__ == "__main__":
     cam_num =  0
     
     is_lighting = True
-    is_recod_video = True    
+    is_recod_video = False    
     cam_name = 'AR0234' # 'OV7251' #  
     
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT
@@ -355,7 +365,6 @@ if __name__ == "__main__":
     if fourcc == 'X264':  
         video_file_name = 'IMG/video/' +cam_name +'_' + time.strftime("%m%d-%H%M%S")  + '.mp4'
     
-    if is_recod_video: saver = AngleTracker(video_file_name,fourcc, target_fps, resolution, 'monocolor')
 
     frame_id = 0
     whether_firstframe = True
@@ -371,43 +380,51 @@ if __name__ == "__main__":
     filename = 'no meaning'
     fuzzy = FUZZYCONTROL()
     tracker = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor')
-    
     control = True
+    control_interval = 1 # duty ratio is added once per control_interval
     visualize = True
 
-
+    
     while True:
         cur_time = time.perf_counter()
         ret, frame_raw = cap.read()
         try:
             if ret:
-                if is_recod_video: saver.add_frame(frame_raw)
+                if is_recod_video: tracker.add_frame(frame_raw)
+                else: tracker.input_frame(frame_raw)            
 
                 if whether_firstframe:
-                    saver.acquire_marker_color()
-                    firstangle = [saver.first_angles[1], saver.first_angles[2], saver.first_angles[3]]
+                    tracker.acquire_marker_color()
+                    firstangle = [tracker.first_angles[1], tracker.first_angles[2], tracker.first_angles[3]]
                     print('first angle:',firstangle)
                     target = fuzzy.input_target(firstangle)
                     if visualize: fuzzy.setting_visualize_functions_realtime()
+                    timemeasure = time.perf_counter()
+                    # whether_firstframe = False
+
 
                 
                 if True:
-                    noneedframe, angle_0, angle_1, angle_2 = saver.extract_angle()
-                    angles = np.array([angle_0, angle_1, angle_2])
-                    currrent_error =  angles - target
-                    cv2.imshow('Video Preview', saver.frame)
+
+                    if frame_id == 0 or frame_id % control_interval == 0:
+                        noneedframe, angle_0, angle_1, angle_2 = tracker.extract_angle()
+                        angles = np.array([angle_0, angle_1, angle_2])
+                        currrent_error =  angles - target
+                        cv2.imshow('Video Preview', tracker.frame)
                 
                     
                 if control:
-                    if frame_id % 10 == 0:
+                    if frame_id == 0 or frame_id % control_interval == 0: 
                         fuzzy.Fuzzy_process(angles, whether_firstframe)
                         whether_firstframe = False
+                        t = time.perf_counter() - timemeasure
+                        timemeasure = time.perf_counter()
                         print('outout duty ratio', fuzzy.output_levels)
+                        print(t)
 
                         if visualize:
                             fuzzy.visualize_functions_realtime(0.01, fuzzy.x, fuzzy.y1, fuzzy.y2)
-
-
+                        
                 frame_id += 1
                 frame_times.append(cur_time)
 
@@ -424,11 +441,12 @@ if __name__ == "__main__":
             if cv2.waitKey(1) & 0xFF == ord('q'): 
                 fuzzy.stop_DR()
                 break
-        except KeyboardInterrupt or UnboundLocalError:
+        except :
             fuzzy.stop_DR()
+
             break
  
 
     cap.release()
     cv2.destroyAllWindows()
-    if is_recod_video: saver.finalize()
+    if is_recod_video: tracker.finalize()
