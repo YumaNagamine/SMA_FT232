@@ -19,6 +19,7 @@ class FUZZYCONTROL():
         self.output_levels = np.zeros(7)
 
         self.connect()
+        self.angle_history = np.zeros(4)
 
 
         pass
@@ -290,7 +291,22 @@ class FUZZYCONTROL():
 
 
         plt.pause(interval)
-        
+
+    def angle_recorder(self, current_time, current_angles):
+        current_angles = np.array(current_angles)
+        temp = np.hstack(current_time, current_angles)
+        self.angle_history = np.vstack(self.angle_history, temp)
+
+
+    def angle_plotter(self):
+        plt.plot(self.angle_history[1:, 0], self.angle_history[1:, 1], label='angle0')
+        plt.plot(self.angle_history[1:, 0], self.angle_history[1:, 2], label='angle1')
+        plt.plot(self.angle_history[1:, 0], self.angle_history[1:, 3], label='angle2')
+        plt.xlabel = 'time'
+        plt.ylabel = 'angle'
+        plt.grid()
+        plt.legend()
+        plt.show()
 
     
 
@@ -355,6 +371,7 @@ if __name__ == "__main__":
     filename = 'no meaning'
     fuzzy = FUZZYCONTROL()
     tracker = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor')
+    
     control = True
     visualize = True
 
