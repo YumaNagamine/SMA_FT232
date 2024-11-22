@@ -173,7 +173,7 @@ class FUZZYCONTROL():
             self.du = self.controlmethod_RE(err)
 
         elif self.mode[0] == 'remain' and self.mode[1] == 'remain':
-            self.du = self.controlmethod_RR(err)
+            self.du = self.controlmethod_RR()
 
         self.output_levels = np.array(self.output_levels + self.du)
         self.output_levels = self.limit_dutyratio(self.output_levels, 0.4)
@@ -258,6 +258,10 @@ class FUZZYCONTROL():
 
         # print('du',du)
   
+        return du
+    
+    def controlmethod_RR(self):      
+        du = np.zeros(7, dtype=np.float32)
         return du
     
     def Fuzzy_process(self, current_angles, firstframe):
