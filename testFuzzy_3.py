@@ -8,7 +8,8 @@ from SMA_finger.SMA_finger_MP import *
 
 # By searching for "adjust" (Ctrl + F) you can find parameters to adjust
 
-# output vector du assumes [flexor0, flexor1, mainextensor, subextensor0, subextensor1, ooo, ooo]
+# output vector du assumes [FDP, FDS, EDC, EIM, LM（虫様筋）, IDM（背側骨間筋）, IPM（掌側骨間筋）]
+# du[2] and du[3] must be the same value
 
 class FUZZYCONTROL():
 
@@ -17,18 +18,19 @@ class FUZZYCONTROL():
         self.channels = PWMGENERATOR.CH_EVEN
 
         self.output_levels = np.zeros(7)
+
         self.connect()
         self.angle_history = np.zeros(4)
 
         print("\n\nFuzzy contorller established")
 
         # test update speed
-        _st_ = time.perf_counter()
-        for _i in range(100):
-            for channels, ch_DR in zip(self.channels, self.output_levels):
-                self.actuator_device.setDutyRatioCH(channels, ch_DR, relax=False)
-        _t = 1/(-(_st_ - time.perf_counter())/100)
-        print("Tested PWM output update rate:",_t ,"Hz")
+        # _st_ = time.perf_counter()
+        # for _i in range(100):
+        #     for channels, ch_DR in zip(self.channels, self.output_levels):
+        #         self.actuator_device.setDutyRatioCH(channels, ch_DR, relax=False)
+        # _t = 1/(-(_st_ - time.perf_counter())/100)
+        # print("Tested PWM output update rate:",_t ,"Hz")
 
         pass
     def connect(self):
@@ -64,6 +66,22 @@ class FUZZYCONTROL():
         self.apply_DR(retry=False)
 
 
+    # def input_target(self, target, current_angles):
+    #     target = np.array(target)
+    #     current_angles = np.array(current_angles)
+    #     self.err = target - current_angles
+        
+    #     mask = self.err < 0 # True means: to be flex
+    #     if mask.all()==True:
+    #         self.mode = 'flex'
+    #     elif mask.all() == False:
+    #         self.mode = 'extend'
+    #     elif mask == [True, True, False]:
+    #         self.mode = 'extend only MCP'
+    #     elif mask == [False, False, True]:
+    #         self.mode = 'flex only MCP'
+        
+    #     self.target = target
     def input_target(self, current_angles):
         remain_upper_limit = 1 #adjust these parameters
         remain_lower_limit = -1
@@ -145,47 +163,30 @@ class FUZZYCONTROL():
         print("mode=", self.mode)
         print("errors= ", err)
         return np.array([angle0, angle1, angle2])
-    
+
 
     def control_method(self, err):
-        if self.mode[0] == 'flex' and self.mode[1] == 'flex':
-            self.du = self.controlmethod_FF(err)
-
-        elif self.mode[0] == 'flex' and self.mode[1] == 'extend':
-            self.du = self.controlmethod_FE(err)
-
-        elif self.mode[0] == 'flex' and self.mode[1] == 'remain':
-            self.du = self.controlmethod_FR(err)
-
-        elif self.mode[0] == 'extend' and self.mode[1] == 'flex':
-            self.du = self.controlmethod_EF(err)
-
-        elif self.mode[0] == 'extend' and self.mode[1] == 'extend':
-            self.du =  self.controlmethod_EE(err)
-
-        elif self.mode[0] == 'extend' and self.mode[1] == 'remain':
-            self.du = self.controlmethod_ER(err)
-            
-        elif self.mode[0] == 'remain' and self.mode[1] == 'flex':
-            self.du = self.controlmethod_RF(err)
-
-        elif self.mode[0] == 'remain' and self.mode[1] == 'extend':
-            self.du = self.controlmethod_RE(err)
-
-        elif self.mode[0] == 'remain' and self.mode[1] == 'remain':
-            self.du = self.controlmethod_RR(err)
+        # if self.mode == 'flex':
+        if self.mode == ['flex','flex']:
+            self.du = self.controlmethod_flex(err)
+        elif self.mode == 'extend':
+            self.du = self.controlmethod_extend(err)
+        elif self.mode == 'extend only MCP':
+            self.du = self.controlmethod_extendMCP(err)
+        elif self.mode == 'flex only MCP':
+            self.du = self.controlmethod_flexMCP(err)
 
         self.output_levels = np.array(self.output_levels + self.du)
         self.output_levels = self.limit_dutyratio(self.output_levels, 0.4)
         
 
-    def controlmethod_FF(self,err):
-        # err nust be: [angle0, angle1, angle2]
+    def controlmethod_flex(self,err):
+        # err must be: [angle0, angle1, angle2]
         err = np.array(err)        
         du = np.zeros(7, dtype=np.float32)
         # adjust following parameters
-        du_min = -0.1
-        du_max = 0.1
+        du_min = -0.05
+        du_max = 0.05
         param_tri = np.array([[[-45,0], [0,1], [45,0]], # for angle0,1
                              [[-80,0], [0,1], [80,0]]]) # for angle2
         param_up = np.array([[[0,0], [90,1]], # for angle0,1
@@ -199,65 +200,79 @@ class FUZZYCONTROL():
 
 
         # adjust following parameters
-        # for flexor0
-        param_output_0 = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
+        # for flexor0(FDP)
+        param_FDP = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
                                   [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
                                   [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
-        # for flexor1
-        param_output_1 = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
+        # for flexor1(FDS)
+        param_FDS = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
                                   [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
                                   [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
-        
-        weights_flexor0 = np.array([0,1,1])
-        weights_flexor1 = np.array([1,1,1])
-        membership_degree_flexor0 = mf.weighting(weights_flexor0, membership_degree)
-        membership_degree_flexor1 = mf.weighting(weights_flexor1, membership_degree)
+        # for extensors(EDC, EIM)
+        param_extensors = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
+                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
+                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
+        # for IPM
+        param_IPM =  np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
+                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
+                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
+        # for IDM
+        param_IDM = np.array([[[-0.025, 0],[-0.0125, 1],[0,0]], # left triangle
+                                  [[-0.015,0],[0,1],[0.015, 0]], # middle triangle
+                                  [[0,0],[0.0125, 1],[0.025, 0]]]) # right triangle
+        # for LM
+        param_LM = np.array([[[-0.025, 0],[-0.0125, 1],[0,0]], # left triangle
+                                  [[-0.015,0],[0,1],[0.015, 0]], # middle triangle
+                                  [[0,0],[0.0125, 1],[0.025, 0]]]) # right triangle        
+
+        weights_FDP = np.array([0,1,1])
+        weights_FDS = np.array([1,1,1])
+        weights_extensors = np.array([1,1,1])
+        weights_IPM = np.array([0,0,1])
+        weights_IDM = np.array([0,0,1])
+        weights_LM = np.array([0,0,1])
+
+        membership_degree_FDP = mf.weighting(weights_FDP, membership_degree)
+        membership_degree_FDS = mf.weighting(weights_FDS, membership_degree)
+        membership_degree_extensors = mf.weighting(weights_extensors, membership_degree)
+        membership_degree_IPM = mf.weighting(weights_IPM, membership_degree)
+        membership_degree_IDM = mf.weighting(weights_IDM, membership_degree)
+        membership_degree_LM = mf.weighting(weights_LM, membership_degree)
 
         
-        # get arrays of output_membership
-        fine = 1000 
+        fine = 1000
         number_of_step = (du_max-du_min)*fine  
         dx =  (du_max-du_min)/number_of_step
             
         x = np.linspace(du_min, du_max, num=int(number_of_step))
 
         self.x = x
-        """
-        y0 = np.vectorize(mf.triangle_func)(x, param_output_0[0][0], param_output_0[0][1],param_output_0[0][2]) #left : du < 0 
-        y1 = np.vectorize(mf.triangle_func)(x, param_output_0[1][0], param_output_0[1][1],param_output_0[1][2]) #middle: du ~ 0
-        y2 = np.vectorize(mf.triangle_func)(x, param_output_0[2][0], param_output_0[2][1],param_output_0[2][2]) #right: du > 0
-        """
-        y0 = mf.triangle_func_np(x, param_output_0[0][0], param_output_0[0][1],param_output_0[0][2]) #left : du < 0 
-        y1 = mf.triangle_func_np(x, param_output_0[1][0], param_output_0[1][1],param_output_0[1][2]) #middle: du ~ 0
-        y2 = mf.triangle_func_np(x, param_output_0[2][0], param_output_0[2][1],param_output_0[2][2]) #right: du > 0
-
-        y0 = np.minimum(membership_degree_flexor0[1],y0)
-        y1 = np.minimum(membership_degree_flexor0[0],y1)
-        y2 = np.minimum(membership_degree_flexor0[2],y2)
-        self.y1 = np.vstack((y0,y1,y2))
-
-        du[0] = mf.calc_centroid(x, y0, y1, y2, dx) # flexor0 output
-        '''
-        y0 = np.vectorize(mf.triangle_func)(x, param_output_1[0][0], param_output_1[0][1],param_output_1[0][2])
-        y1 = np.vectorize(mf.triangle_func)(x, param_output_1[1][0], param_output_1[1][1],param_output_1[1][2])
-        y2 = np.vectorize(mf.triangle_func)(x, param_output_1[2][0], param_output_1[2][1],param_output_1[2][2])
-        '''
-        y0 = mf.triangle_func_np(x, param_output_1[0][0], param_output_1[0][1],param_output_1[0][2])
-        y1 = mf.triangle_func_np(x, param_output_1[1][0], param_output_1[1][1],param_output_1[1][2])
-        y2 = mf.triangle_func_np(x, param_output_1[2][0], param_output_1[2][1],param_output_1[2][2])
-
-        y0 = np.minimum(membership_degree_flexor1[1],y0)
-        y1 = np.minimum(membership_degree_flexor1[0],y1)
-        y2 = np.minimum(membership_degree_flexor1[2],y2)
-        self.y2 = np.vstack((y0,y1,y2))
-
-        # FUZZYCONTROL.visualize_functions('flexor1',x,y0,y1,y2)
-
+        # FDP output 
+        self.y1 = mf.get_processed_membershipfunc(x, param_FDP, membership_degree_FDP, order=[1,0,2])
+        du[0] = mf.calc_centroid(x, self.y1[0], self.y1[1], self.y1[2], dx) # flexor0 output
         
-        du[1] = mf.calc_centroid(x, y0, y1, y2, dx) # flexor1 output
+        # FDS output 
+        self.y2 = mf.get_processed_membershipfunc(x, param_FDS, membership_degree_FDS, order=[1,0,2])
+        du[1] = mf.calc_centroid(x, self.y2[0], self.y2[1], self.y2[2], dx) # flexor1 output
+       
+        # extensors output
+        self.y3 = mf.get_processed_membershipfunc(x, param_extensors, membership_degree_extensors, order=[2,0,1])
+        du[2] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor0 output
+        du[3] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor1 output
 
-        # print('du',du)
-  
+        # LM output
+        self.y4 = mf.get_processed_membershipfunc(x, param_LM, membership_degree_LM, order=[1,0,2])
+        du[4] = mf.calc_centroid(x, self.y4[0], self.y4[1], self.y4[2], dx)
+     
+        # IDM output
+        self.y5 = mf.get_processed_membershipfunc(x, param_IDM, membership_degree_IDM, order=[1,0,2])
+        du[5] = mf.calc_centroid(x, self.y5[0], self.y5[1], self.y5[2], dx)
+     
+        # IPM output
+        self.y6 = mf.get_processed_membershipfunc(x, param_IPM, membership_degree_IPM, order=[1,0,2])
+        du[6] = mf.calc_centroid(x, self.y6[0], self.y6[1], self.y6[2], dx)
+        
+
         return du
     
     def Fuzzy_process(self, current_angles, firstframe):
@@ -272,7 +287,7 @@ class FUZZYCONTROL():
     
     @staticmethod
     def limit_dutyratio(dutyratio, upperlimit):
-        return np.clip(dutyratio, None, upperlimit)
+        return np.clip(dutyratio, 0, upperlimit)
     
     @staticmethod
     def visualize_functions(title, x, y0,y1=0,y2=0):
@@ -283,21 +298,45 @@ class FUZZYCONTROL():
         plt.show()
 
     def setting_visualize_functions_realtime(self): # To visualize output
-        self.fig, self.axes = plt.subplots(1,2)
+        self.fig, self.axes = plt.subplots(1,6)
             
 
-    def visualize_functions_realtime(self, interval, x, y_1, y_2): # To visualize output, used in while loooooop
-        # y_i must consist of 3 data of y
-        if self.mode == ['flex', 'flex']:
-            for ax in self.axes: ax.clear()
-            self.axes[0].set_title('flexor0')
-            self.axes[1].set_title('flexor1')
-            lines = [self.axes[0].plot(x, y_1[0])[0], self.axes[1].plot(x, y_2[0])[0]]
-            lines = [self.axes[0].plot(x, y_1[1])[0], self.axes[1].plot(x, y_2[1])[0]]
-            lines = [self.axes[0].plot(x, y_1[2])[0], self.axes[1].plot(x, y_2[2])[0]]
-            self.axes[0].axvline(x=self.du[0], linestyle='--')
-            self.axes[1].axvline(x=self.du[1], linestyle='--')
+    # def visualize_functions_realtime(self, interval, x, y_1, y_2): # To visualize output, used in while loooooop
+    #     # y_i must consist of 3 data of y
+    #     if self.mode == ['flex', 'flex']:
+    #         for ax in self.axes: ax.clear()
+    #         self.axes[0].set_title('flexor0')
+    #         self.axes[1].set_title('flexor1')
+    #         lines = [self.axes[0].plot(x, y_1[0])[0], self.axes[1].plot(x, y_2[0])[0]]
+    #         lines = [self.axes[0].plot(x, y_1[1])[0], self.axes[1].plot(x, y_2[1])[0]]
+    #         lines = [self.axes[0].plot(x, y_1[2])[0], self.axes[1].plot(x, y_2[2])[0]]
+    #         self.axes[0].axvline(x=self.du[0], linestyle='--')
+    #         self.axes[1].axvline(x=self.du[1], linestyle='--')
 
+
+    #     plt.pause(interval)
+
+    def visualize_functions_realtime(self, interval, x, y_1, y_2, y_3, y_4, y_5, y_6): # To visualize output, used in while loooooop
+        # y_i must consist of 3 data of y
+        for ax in self.axes: ax.clear()
+
+        self.axes[0].set_title('FDP')
+        self.axes[1].set_title('FDS')
+        self.axes[2].set_title('Extensors')
+        self.axes[3].set_title('LM')
+        self.axes[4].set_title('IDM')
+        self.axes[5].set_title('IPM')
+
+        lines = [self.axes[0].plot(x, y_1[0])[0], self.axes[1].plot(x, y_2[0])[0], self.axes[2].plot(x, y_3[0])[0], self.axes[3].plot(x, y_4[0])[0], self.axes[4].plot(x, y_5[0])[0], self.axes[5].plot(x, y_6[0])[0]]
+        lines = [self.axes[0].plot(x, y_1[1])[0], self.axes[1].plot(x, y_2[1])[0], self.axes[2].plot(x, y_3[1])[0], self.axes[3].plot(x, y_4[1])[0], self.axes[4].plot(x, y_5[1])[0], self.axes[5].plot(x, y_6[1])[0]]
+        lines = [self.axes[0].plot(x, y_1[2])[0], self.axes[1].plot(x, y_2[2])[0], self.axes[2].plot(x, y_3[2])[0], self.axes[3].plot(x, y_4[2])[0], self.axes[4].plot(x, y_5[2])[0], self.axes[5].plot(x, y_6[2])[0]]
+
+
+        for i in range(6):
+            if i <= 2:
+                self.axes[i].axvline(x=self.du[i], linestyle='--')
+            else: 
+                self.axes[i].axvline(x=self.du[i+1], linestyle='--')
 
         plt.pause(interval)
 
@@ -425,7 +464,7 @@ if __name__ == "__main__":
                         print(t)
 
                         if visualize:
-                            fuzzy.visualize_functions_realtime(0.01, fuzzy.x, fuzzy.y1, fuzzy.y2)
+                            fuzzy.visualize_functions_realtime(0.01, fuzzy.x, fuzzy.y1, fuzzy.y2, fuzzy.y3, fuzzy.y4, fuzzy.y5, fuzzy.y6)
                 if record_angle:
                     time_for_record = time.perf_counter() - initial_time
                     fuzzy.angle_recorder(time_for_record, angles)
