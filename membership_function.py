@@ -90,6 +90,29 @@ def weighting(weights, membership_degree):
     new_membership_degree = mem/den
 
     return new_membership_degree
+
+def get_processed_membershipfunc(x, param, membership_degree, order):
+    y0 = triangle_func_np(x, param[0][0], param[0][1],param[0][2]) #left : du < 0 
+    y1 = triangle_func_np(x, param[1][0], param[1][1],param[1][2]) #middle: du ~ 0
+    y2 = triangle_func_np(x, param[2][0], param[2][1],param[2][2]) #right: du > 0
+
+    # y0 = np.minimum(membership_degree[1],y0)
+    # y1 = np.minimum(membership_degree[0],y1)
+    # y2 = np.minimum(membership_degree[2],y2)
+
+    for index, num in enumerate(order):
+        if index == 0:
+            y0 = np.minimum(membership_degree[num],y0)
+        elif index == 1:
+            y1 = np.minimum(membership_degree[num],y1)
+        elif index == 2:
+            y2 = np.minimum(membership_degree[num],y2)
+
+    y = np.vstack((y0, y1, y2))
+
+    return y
+
+
 def test(x):
     y = - x**2 - 2*x + 3
     return y
