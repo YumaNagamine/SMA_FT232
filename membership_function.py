@@ -72,6 +72,19 @@ def normal_three_membership(x, tri_param, up_param, down_param): # consist of do
     y = np.array([y_tri, y_up, y_down])
     return y
 
+def seven_memdegree(x, param): # for former part of if-then rules. Return value of NB, NM, NS, ZE, PS, PM, PB
+    # param should be [center of PS, center of PM, center of PB]
+    value = np.zeros(7, dtype=np.float64)
+    value[0] = slope_func_np(x, -param[2], -param[1])
+    value[1] = triangle_func_np(x, -param[2], -param[1], -param[0])
+    value[2] = triangle_func_np(x, -param[1], -param[0], 0)
+    value[3] = triangle_func_np(x, -param[0], 0, param[0])
+    value[4] = triangle_func_np(x, 0, param[0], param[1])
+    value[5] = triangle_func_np(x, param[0], param[1], param[2])
+    value[6] = slope_func_np(x, param[1], param[2])
+
+    return value
+
 def calc_centroid(x, y0, y1, y2, dx): # y is array
     y = np.maximum.reduce([y0, y1, y2])
     num = np.sum(x*y*dx)
