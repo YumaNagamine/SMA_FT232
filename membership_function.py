@@ -125,15 +125,73 @@ def get_processed_membershipfunc(x, param, membership_degree, order):
 
     return y
 
+def get_processed_membershipfunc_seven(x, param, membership_degree, order):
+    # param should be [center of NB, NM, NS, ZE, PS, PM, PB]
+    distance = param[1]-param[0]
+    y0 = triangle_func_np(x, [param[0]-distance, 0], [param[0], 1], [param[1], 0]) # NB 
+    y1 = triangle_func_np(x, [param[0], 0], [param[1], 1], [param[2], 0]) # NM
+    y2 = triangle_func_np(x, [param[1], 0], [param[2], 1], [param[3], 0]) # NS
+    y3 = triangle_func_np(x, [param[2], 0], [param[3], 1], [param[4], 0]) # ZE
+    y4 = triangle_func_np(x, [param[3], 0], [param[4], 1], [param[5], 0]) # PS
+    y5 = triangle_func_np(x, [param[4], 0], [param[5], 1], [param[6], 0]) # PM
+    y6 = triangle_func_np(x, [param[5], 0], [param[6], 1], [param[6]+distance, 0]) # PB
+    temp_list = []
+
+    for index, num in enumerate(order):
+        if index == 0:
+            y0 = np.minimum(membership_degree[num],y0)
+            if not np.all(y0 == 0): temp_list.append(y0)
+        elif index == 1:
+            y1 = np.minimum(membership_degree[num],y1)
+            if not np.all(y1 == 0): temp_list.append(y1)
+        elif index == 2:
+            y2 = np.minimum(membership_degree[num],y2)
+            if not np.all(y2 == 0): temp_list.append(y2)
+        elif index == 3:
+            y3 = np.minimum(membership_degree[num],y3)
+            if not np.all(y3 == 0): temp_list.append(y3)
+        elif index == 4:
+            y4 = np.minimum(membership_degree[num],y4)
+            if not np.all(y4 == 0): temp_list.append(y4)
+        elif index == 5:
+            y5 = np.minimum(membership_degree[num],y5)
+            if not np.all(y5 == 0): temp_list.append(y5)
+        elif index == 6:
+            y6 = np.minimum(membership_degree[num],y6)
+            if not np.all(y6 == 0): temp_list.append(y6)
+
+    y = np.vstack((temp_list[0], temp_list[1]))
+
+    return y
+
+
+
+def target_function(t, initial_target, target0=[],target1=[], target2=[],target3=[]):
+    # target should be [time, target angle]
+    
+    if target0 == [] or t < target0[0]: return initial_target
+    elif target1 == [] or t < target1[0]: return target0[1]
+    elif target2 == [] or t < target2[0]: return target1[1]
+    elif target3 == [] or t < target3[0]: return target2[1]
+    else: return target3[1]
 
 def test(x):
     y = - x**2 - 2*x + 3
     return y
 
 if __name__ == '__main__':
-    x = np.linspace(-1, 1, 18000)
-    y = triangle_func_np(x, [-0.5, 0], [-0.25,1], [0,0])
-    # y = slope_func_np(x, [-90,1],[0,0])
-    plt.plot(x,y)
-    plt.show()
-    pass
+    # x = np.linspace(-1, 1, 18000)
+    # y = triangle_func_np(x, [-0.5, 0], [-0.25,1], [0,0])
+    # # y = slope_func_np(x, [-90,1],[0,0])
+    # plt.plot(x,y)
+    # plt.show()
+    # pass
+    import time
+    f = time.time()
+    while True:
+        t = time.time()-f 
+        target = target_function(t, 10, [5,110],[10,200])
+        print(t, "s")
+        print(target)
+        time.sleep(0.4)
+
