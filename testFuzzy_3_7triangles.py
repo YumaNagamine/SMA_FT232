@@ -12,6 +12,7 @@ from SMA_finger.SMA_finger_MP import *
 # du[2] and du[3] must be the same value
 
 class FUZZYCONTROL():
+ 
 
     def __init__(self):
         self.actuator_device = []
@@ -31,8 +32,18 @@ class FUZZYCONTROL():
         #         self.actuator_device.setDutyRatioCH(channels, ch_DR, relax=False)
         # _t = 1/(-(_st_ - time.perf_counter())/100)
         # print("Tested PWM output update rate:",_t ,"Hz")
+            # adjust following parameters
+        self.du_min = -0.1
+        self.du_max = 0.1
+ 
 
-        pass
+        self.weights_FDP = np.array([0,1,1])
+        self.weights_FDS = np.array([1,1,1])
+        self.weights_extensors = np.array([1,1,1])
+        self.weights_IPM = np.array([0,0,1])
+        self.weights_IDM = np.array([0,0,1])
+        self.weights_LM = np.array([0,0,1]) 
+
     def connect(self):
         url_test_len = 4
         actuator_device = []
@@ -170,101 +181,70 @@ class FUZZYCONTROL():
         #     self.du = self.controlmethod_flex(err)
         # elif self.mode == 'extend':
         #     self.du = self.controlmethod_extend(err)
-        self.du = self.controlmethod_flex(err)
+        self.du = self.controlmethod(err)
         self.output_levels = np.array(self.output_levels + self.du)
         self.output_levels = self.limit_dutyratio(self.output_levels, 0.6)
         
 
-    def controlmethod_flex(self,err):
+    def controlmethod(self,err):
         # err must be: [angle0, angle1, angle2]
         err = np.array(err)        
         du = np.zeros(7, dtype=np.float32)
         # adjust following parameters
-        du_min = -0.05
-        du_max = 0.05
-        param_tri = np.array([[[-45,0], [0,1], [45,0]], # for angle0,1
-                             [[-80,0], [0,1], [80,0]]]) # for angle2
-        param_up = np.array([[[0,0], [90,1]], # for angle0,1
-                            [[0,0], [160,1]]]) # for angle2
-        param_down = np.array([[[-90,1],[0,0]], # for angle0,1
-                              [[-160,1],[0,0]]]) # for angle2
-        membership_degree_angle0 = mf.normal_three_membership(err[0], param_tri[0], param_up[0], param_down[0])
-        membership_degree_angle1 = mf.normal_three_membership(err[1], param_tri[0], param_up[0], param_down[0])
-        membership_degree_angle2 = mf.normal_three_membership(err[2], param_tri[1], param_up[1], param_down[1])
-        membership_degree = np.vstack((membership_degree_angle0, membership_degree_angle1, membership_degree_angle2))
 
+        err_max = 90
+        err_max2 = 160
+        param = [err_max/3, 2*err_max/3, err_max]
+        param2 = [err_max2/3, 2*err_max2/3, err_max2]
 
-        # adjust following parameters
-        # for flexor0(FDP)
-        param_FDP = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
-                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
-                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
-        # for flexor1(FDS)
-        param_FDS = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
-                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
-                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
-        # for extensors(EDC, EIM)
-        param_extensors = np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
-                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
-                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
-        # for IPM
-        param_IPM =  np.array([[[-0.05, 0],[-0.025, 1],[0,0]], # left triangle
-                                  [[-0.03,0],[0,1],[0.03, 0]], # middle triangle
-                                  [[0,0],[0.025, 1],[0.05, 0]]]) # right triangle
-        # for IDM
-        param_IDM = np.array([[[-0.025, 0],[-0.0125, 1],[0,0]], # left triangle
-                                  [[-0.015,0],[0,1],[0.015, 0]], # middle triangle
-                                  [[0,0],[0.0125, 1],[0.025, 0]]]) # right triangle
-        # for LM
-        param_LM = np.array([[[-0.025, 0],[-0.0125, 1],[0,0]], # left triangle
-                                  [[-0.015,0],[0,1],[0.015, 0]], # middle triangle
-                                  [[0,0],[0.0125, 1],[0.025, 0]]]) # right triangle        
+        membership_degree_angle0 = mf.seven_memdegree(err[0], param)
+        membership_degree_angle1 = mf.seven_memdegree(err[1], param)
+        membership_degree_angle2 = mf.seven_memdegree(err[2], param2)
 
-        weights_FDP = np.array([0,1,1])
-        weights_FDS = np.array([1,1,1])
-        weights_extensors = np.array([1,1,1])
-        weights_IPM = np.array([0,0,1])
-        weights_IDM = np.array([0,0,1])
-        weights_LM = np.array([0,0,1])
+        membership_degree = np.vstack((membership_degree_angle0, membership_degree_angle1, membership_degree_angle2)) # 3x7 matrix
 
-        membership_degree_FDP = mf.weighting(weights_FDP, membership_degree)
-        membership_degree_FDS = mf.weighting(weights_FDS, membership_degree)
-        membership_degree_extensors = mf.weighting(weights_extensors, membership_degree)
-        membership_degree_IPM = mf.weighting(weights_IPM, membership_degree)
-        membership_degree_IDM = mf.weighting(weights_IDM, membership_degree)
-        membership_degree_LM = mf.weighting(weights_LM, membership_degree)
+        membership_degree_FDP = mf.weighting(self.weights_FDP, membership_degree)
+        membership_degree_FDS = mf.weighting(self.weights_FDS, membership_degree)
+        membership_degree_extensors = mf.weighting(self.weights_extensors, membership_degree)
+        membership_degree_IPM = mf.weighting(self.weights_IPM, membership_degree)
+        membership_degree_IDM = mf.weighting(self.weights_IDM, membership_degree)
+        membership_degree_LM = mf.weighting(self.weights_LM, membership_degree)
+
 
         
+        #adjust parameters
         fine = 1000
-        number_of_step = (du_max-du_min)*fine  
-        dx =  (du_max-du_min)/number_of_step
+        number_of_step = (self.du_max-self.du_min)*fine  
+        dx =  (self.du_max-self.du_min)/number_of_step
             
-        x = np.linspace(du_min, du_max, num=int(number_of_step))
-
+        x = np.linspace(self.du_min, self.du_max, num=int(number_of_step))
+        centers = np.array([self.du_min, 2*self.du_min/3, self.du_min/3, 0, self.du_max/3, 2*self.du_max/3, self.du_max])
+        centers2 = centers/4
         self.x = x
+        
         # FDP output 
-        self.y1 = mf.get_processed_membershipfunc(x, param_FDP, membership_degree_FDP, order=[1,0,2])
+        self.y1 = mf.get_processed_membershipfunc_seven(x, centers, membership_degree_FDP, order=[])
         du[0] = mf.calc_centroid(x, self.y1[0], self.y1[1], self.y1[2], dx) # flexor0 output
         
         # FDS output 
-        self.y2 = mf.get_processed_membershipfunc(x, param_FDS, membership_degree_FDS, order=[1,0,2])
+        self.y2 = mf.get_processed_membershipfunc(x, centers, membership_degree_FDS, order=[1,0,2])
         du[1] = mf.calc_centroid(x, self.y2[0], self.y2[1], self.y2[2], dx) # flexor1 output
        
         # extensors output
-        self.y3 = mf.get_processed_membershipfunc(x, param_extensors, membership_degree_extensors, order=[2,0,1])
+        self.y3 = mf.get_processed_membershipfunc(x, centers, membership_degree_extensors, order=[2,0,1])
         du[2] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor0 output
         du[3] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor1 output
 
         # LM output
-        self.y4 = mf.get_processed_membershipfunc(x, param_LM, membership_degree_LM, order=[1,0,2])
+        self.y4 = mf.get_processed_membershipfunc(x, centers2, membership_degree_LM, order=[1,0,2])
         du[4] = mf.calc_centroid(x, self.y4[0], self.y4[1], self.y4[2], dx)
      
         # IDM output
-        self.y5 = mf.get_processed_membershipfunc(x, param_IDM, membership_degree_IDM, order=[1,0,2])
+        self.y5 = mf.get_processed_membershipfunc(x, centers2, membership_degree_IDM, order=[1,0,2])
         du[5] = mf.calc_centroid(x, self.y5[0], self.y5[1], self.y5[2], dx)
      
         # IPM output
-        self.y6 = mf.get_processed_membershipfunc(x, param_IPM, membership_degree_IPM, order=[1,0,2])
+        self.y6 = mf.get_processed_membershipfunc(x, centers2, membership_degree_IPM, order=[1,0,2])
         du[6] = mf.calc_centroid(x, self.y6[0], self.y6[1], self.y6[2], dx)
         
 
