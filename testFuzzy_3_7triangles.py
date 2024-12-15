@@ -223,28 +223,28 @@ class FUZZYCONTROL():
         self.x = x
         
         # FDP output 
-        self.y1 = mf.get_processed_membershipfunc_seven(x, centers, membership_degree_FDP, order=[])
+        self.y1 = mf.get_processed_membershipfunc_seven(x, centers, membership_degree_FDP, order=[6,5,4,3,2,1,0])
         du[0] = mf.calc_centroid(x, self.y1[0], self.y1[1], self.y1[2], dx) # flexor0 output
         
         # FDS output 
-        self.y2 = mf.get_processed_membershipfunc(x, centers, membership_degree_FDS, order=[1,0,2])
+        self.y2 = mf.get_processed_membershipfunc(x, centers, membership_degree_FDS, order=[6,5,4,3,2,1,0])
         du[1] = mf.calc_centroid(x, self.y2[0], self.y2[1], self.y2[2], dx) # flexor1 output
        
         # extensors output
-        self.y3 = mf.get_processed_membershipfunc(x, centers, membership_degree_extensors, order=[2,0,1])
+        self.y3 = mf.get_processed_membershipfunc(x, centers, membership_degree_extensors, order=[0,1,2,3,4,5,6])
         du[2] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor0 output
         du[3] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor1 output
 
         # LM output
-        self.y4 = mf.get_processed_membershipfunc(x, centers2, membership_degree_LM, order=[1,0,2])
+        self.y4 = mf.get_processed_membershipfunc(x, centers2, membership_degree_LM, order=[6,5,4,3,2,1,0])
         du[4] = mf.calc_centroid(x, self.y4[0], self.y4[1], self.y4[2], dx)
      
         # IDM output
-        self.y5 = mf.get_processed_membershipfunc(x, centers2, membership_degree_IDM, order=[1,0,2])
+        self.y5 = mf.get_processed_membershipfunc(x, centers2, membership_degree_IDM, order=[6,5,4,3,2,1,0])
         du[5] = mf.calc_centroid(x, self.y5[0], self.y5[1], self.y5[2], dx)
      
         # IPM output
-        self.y6 = mf.get_processed_membershipfunc(x, centers2, membership_degree_IPM, order=[1,0,2])
+        self.y6 = mf.get_processed_membershipfunc(x, centers2, membership_degree_IPM, order=[6,5,4,3,2,1,0])
         du[6] = mf.calc_centroid(x, self.y6[0], self.y6[1], self.y6[2], dx)
         
 
