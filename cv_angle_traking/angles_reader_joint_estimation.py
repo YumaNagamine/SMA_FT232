@@ -343,7 +343,7 @@ class AngleTracker(object): # TODO
         cv2.imshow("Choose", frame)
         return []
 
-    def extract_angle(self, frame, whether_firstframe, calc_intersection):
+    def extract_angle(self, frame, whether_firstframe):
         # Convert the input frame to the CIELAB color space
         d_purple_to_PIP = 60
         d_red_to_DIP = 45
@@ -495,45 +495,49 @@ class AngleTracker(object): # TODO
             angle_2 = self.calculate_angle(markerset_per_frame[0], metacarpal, 2)
             angle_1 = self.calculate_angle(markerset_per_frame[1], markerset_per_frame[0], 1)
             angle_0 = self.calculate_angle(markerset_per_frame[2], markerset_per_frame[1], 0)
-            # angle_2 = self.calculate_angle(markerset_per_frame[2], markerset_per_frame[3], 2)
             
             #Find angles position by calculating intersections of lines 
-            if calc_intersection:
-                angle2_pos = self.calculate_intersection(markerset_per_frame[0], metacarpal)
-                angle1_pos = self.calculate_intersection(markerset_per_frame[1], markerset_per_frame[0])
-                angle0_pos = self.calculate_intersection(markerset_per_frame[2], markerset_per_frame[1])
-                self.b0 = blue_pos[0]
-                self.b1 = blue_pos[1]
-                d0 = AngleTracker.calc_distance(angle1_pos, blue_pos[0])
-                d1 = AngleTracker.calc_distance(angle1_pos, blue_pos[1])
-                print("d0 :", d0)
-                print("d1 :", d1)
 
-                if d0 < d1: #then blue_pos[1] is fingertip
-                    fingertip_pos = np.array(blue_pos[1])
-                    self.referenceFingertip = fingertip_pos
-                    self.referenceAngle0 = blue_pos[0]
-                    # angle0_pos = blue_pos[0]
-                elif d0 > d1: #then blue_pos[0] is fingertip
-                    fingertip_pos = np.array(blue_pos[0])
-                    self.referenceFingertip = fingertip_pos
-                    self.referenceAngle0 = blue_pos[1]
+            # if calc_intersection:
+            #     angle2_pos = self.calculate_intersection(markerset_per_frame[0], metacarpal)
+            #     angle1_pos = self.calculate_intersection(markerset_per_frame[1], markerset_per_frame[0])
+            #     angle0_pos = self.calculate_intersection(markerset_per_frame[2], markerset_per_frame[1])
+            #     self.b0 = blue_pos[0]
+            #     self.b1 = blue_pos[1]
+            #     d0 = AngleTracker.calc_distance(angle1_pos, blue_pos[0])
+            #     d1 = AngleTracker.calc_distance(angle1_pos, blue_pos[1])
+            #     print("d0 :", d0)
+            #     print("d1 :", d1)
 
-                    # angle0_pos = blue_pos[1]
-                self.angle_pos = AngleTracker.relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos)
-                # self.angle_pos = AngleTracker.rotate_frame_tracked_points(self.angle_pos[3], self.angle_pos[0], self.angle_pos[1], self.angle_pos[2])
-                # self.fingertip_pos.append(self.angle_pos[0])
-                # self.angle0_pos.append(self.angle_pos[1])
-                # self.angle1_pos.append(self.angle_pos[2])
-                # self.angle2_pos.append(self.angle_pos[3])
+            #     if d0 < d1: #then blue_pos[1] is fingertip
+            #         fingertip_pos = np.array(blue_pos[1])
+            #         self.referenceFingertip = fingertip_pos
+            #         self.referenceAngle0 = blue_pos[0]
+            #     elif d0 > d1: #then blue_pos[0] is fingertip
+            #         fingertip_pos = np.array(blue_pos[0])
+            #         self.referenceFingertip = fingertip_pos
+            #         self.referenceAngle0 = blue_pos[1]
+
+            #     self.angle_pos = AngleTracker.relativise_AnglePos_toMCP(fingertip_pos, angle0_pos, angle1_pos, angle2_pos)
+                
+            #     self.fingertip_pos_list = np.vstack((self.fingertip_pos_list, self.angle_pos[0]))
+            #     self.angle0_pos_list = np.vstack((self.angle0_pos_list, self.angle_pos[1]))
+            #     self.angle1_pos_list = np.vstack((self.angle1_pos_list, self.angle_pos[2]))
+            #     self.angle2_pos_list = np.vstack((self.angle2_pos_list, self.angle_pos[3]))
+            #     print("fingertip pos:", fingertip_pos)
+            #     print("angle0 pos:", angle0_pos)
+            #     print("angle1 pos:", angle1_pos)
+            #     print("angle2 pos:", angle2_pos)
+
+             
+            if True: # for visualizing trajectories
+                self.angle_pos = AngleTracker.relativise_AnglePos_toMCP(self.fingertip_pos, self.DIP_pos, self.PIP_pos, self.MCP_pos)
                 self.fingertip_pos_list = np.vstack((self.fingertip_pos_list, self.angle_pos[0]))
                 self.angle0_pos_list = np.vstack((self.angle0_pos_list, self.angle_pos[1]))
                 self.angle1_pos_list = np.vstack((self.angle1_pos_list, self.angle_pos[2]))
                 self.angle2_pos_list = np.vstack((self.angle2_pos_list, self.angle_pos[3]))
-                print("fingertip pos:", fingertip_pos)
-                print("angle0 pos:", angle0_pos)
-                print("angle1 pos:", angle1_pos)
-                print("angle2 pos:", angle2_pos)
+
+
 
             _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
@@ -544,12 +548,7 @@ class AngleTracker(object): # TODO
         # except Exception as err:
         #     print(color_name,' Failed!:',err)
         #     return frame,[],[],[]
-            if False:
-                if whether_firstframe:
-                    self.prev_angles = [angle_0, angle_1, angle_2]
-                    self.current_angles = [angle_0, angle_1, angle_2]
-                else: frame = self.detect_cv_error(frame, 30, angle_0, angle_1, angle_2)
-                angle_0, angle_1, angle_2 = self.current_angles[0], self.current_angles[1], self.current_angles[2]
+  
 
         return frame, angle_0, angle_1, angle_2
     
@@ -848,7 +847,6 @@ if __name__ == '__main__':
     frames_to_store = []
     cnt = frame_shift # for storing frame count
     whether_firstframe = True
-    calc_intersection = True
 
     # Videos capture cycles
     while True:
@@ -861,10 +859,10 @@ if __name__ == '__main__':
         if cnt==frame_shift: tracker.acquire_marker_color(frame)
 
         if whether_firstframe:
-            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
+            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
             whether_firstframe = False
         else:
-            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe, calc_intersection)
+            frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
             if calc_intersection: print("fingertip(abs):", tracker.referenceFingertip)
         # # Use the original frame instead of creating a copy
         # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
