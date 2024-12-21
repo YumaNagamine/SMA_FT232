@@ -389,8 +389,6 @@ class AngleTracker(object): # TODO
 
                 # Filter regions based on area threshold
                 filtered_regions = [index for index, stat in enumerate(stats[1:]) if stat[4] >= thr]
-                
-                    
 
                 # Initialize a list to store points per mask
                 point_per_mask = []
@@ -453,10 +451,6 @@ class AngleTracker(object): # TODO
                         
                     if idx == 0: break
 
-
-
-
-                
                 # Visualize circles for each point in the mask
                 for idx, point in enumerate(point_per_mask):
                     cv2.circle(frame, (point[0], point[1]), radius=(idx+1) * 10, color=color, thickness=2)
