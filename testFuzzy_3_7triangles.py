@@ -4,6 +4,7 @@ import time
 import membership_function as mf
 # from cv_angle_traking.angles_reader_for_new_finger import AngleTracker
 from camera.NOGUI_ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker
+
 from SMA_finger.SMA_finger_MP import *
 
 # By searching for "adjust" (Ctrl + F) you can find parameters to adjust
