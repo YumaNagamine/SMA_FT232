@@ -412,7 +412,7 @@ class AngleTracker(object): # TODO
                     # Append the centroid to the list of points for the mask
                     point_per_mask.append((centroid_x, centroid_y))
 
-                    if mask_index == 0: #purple
+                    if mask_index == 0: #purple. Estimate PIP using MCP and purple marker
                         self.temp_purple_y = centroid_y
                         self.PIP_pos = self.estimate_joint_no_theta(self.MCP_pos, (centroid_x, centroid_y), d_purple_to_PIP)
                         # If direction vector is not initialized, calculate it from the first two points
@@ -427,7 +427,8 @@ class AngleTracker(object): # TODO
                         cv2.line(frame, point1, self.PIP_pos, color, 3)
                         point_per_mask.append(self.MCP_pos)
 
-                    if mask_index == 1: #red
+
+                    if mask_index == 1: #red. Estimate DIP using PIP and red marker
                         self.DIP_pos = self.estimate_joint_no_theta(self.PIP_pos, (centroid_x, centroid_y), d_red_to_DIP)
 
                         if direction_vector is None:
@@ -435,9 +436,9 @@ class AngleTracker(object): # TODO
                         point1 = (int(self.PIP_pos[0] - line_pad * direction_vector[0]),
                                 int(self.PIP_pos[1] - line_pad * direction_vector[1]), )
                         cv2.line(frame, point1, self.DIP_pos, color, 3)
-                        point_per_mask.append(self.DIP_pos)
+                        point_per_mask.append(self.PIP_pos)
 
-                    if mask_index == 2: #blue 
+                    if mask_index == 2: #blue. Estimate Fingertip using DIP and blue marker
                         blue_pos.append((centroid_x, centroid_y))
                         self.fingertip_pos = self.estimate_joint_no_theta(self.DIP_pos, (centroid_x, centroid_y), d_blue_to_fingertip)
                         
@@ -447,7 +448,7 @@ class AngleTracker(object): # TODO
                         point1 = (int(self.DIP_pos[0] - line_pad * direction_vector[0]),
                                 int(self.DIP_pos[1] - line_pad * direction_vector[1]), )
                         cv2.line(frame, point1, self.fingertip_pos, color, 3)
-                        point_per_mask.append(self.PIP_pos)
+                        point_per_mask.append(self.DIP_pos)
                         blue_pos.append(self.fingertip_pos)
                         
                     if idx == 0: break
@@ -496,7 +497,7 @@ class AngleTracker(object): # TODO
             angle_1 = self.calculate_angle(markerset_per_frame[1], markerset_per_frame[0], 1)
             angle_0 = self.calculate_angle(markerset_per_frame[2], markerset_per_frame[1], 0)
             
-            #Find angles position by calculating intersections of lines 
+            # Find angles position by calculating intersections of lines 
 
             # if calc_intersection:
             #     angle2_pos = self.calculate_intersection(markerset_per_frame[0], metacarpal)
@@ -590,7 +591,7 @@ class AngleTracker(object): # TODO
         print("measure:",type(measure))
         print(type(np_data),np_data)
         saveFigure(np_data,f"{video_name.split('.')[0]}_extracted.csv",["angle_2", "angle_1", "angle_0","frame"],
-                   show_img=False, figure_mode='Single' )
+                   show_img=True, figure_mode='Single' )
         # saveData()
 
         pass
@@ -662,7 +663,6 @@ class AngleTracker(object): # TODO
         self.angle0_pos_list = np.vstack(self.angle0_pos_list)
         self.angle1_pos_list = np.vstack(self.angle1_pos_list)
         self.angle2_pos_list = np.vstack(self.angle2_pos_list)
-        fig = plt.figure(layout="tight")
         scatter = True
         if scatter == True:
             L = len(self.fingertip_pos_list) - 1 
@@ -678,6 +678,7 @@ class AngleTracker(object): # TODO
             plt.plot(self.angle2_pos_list.T[0][1:], self.angle2_pos_list.T[1][1:], label ='angle2')
         plt.xlabel('x')
         plt.ylabel('y')
+        plt.figure(figsize=(6,4))
         plt.legend()
         plt.grid(True)
         plt.show()
@@ -762,25 +763,25 @@ class AngleTracker(object): # TODO
         return d
     
     @staticmethod
-    def estimate_joint(theta, d, point, vector, invert):
-        # d : distance between joint and marker
-        point = np.array(point)
-        vector = np.array(vector)
-        if invert:
-            theta = -theta 
-        rot = np.array([np.cos(theta), -np.sin(theta)],
-                       [np.sin(theta), np.cos(theta)])
+    # def estimate_joint(theta, d, point, vector, invert):
+        # # d : distance between joint and marker
+        # point = np.array(point)
+        # vector = np.array(vector)
+        # if invert:
+        #     theta = -theta 
+        # rot = np.array([np.cos(theta), -np.sin(theta)],
+        #                [np.sin(theta), np.cos(theta)])
         
-        vector = np.dot(rot, vector)
+        # vector = np.dot(rot, vector)
 
-        norm = np.linalg.norm(vector)
+        # norm = np.linalg.norm(vector)
 
 
-        joint = np.zeros(2,dtype=np.float64)
+        # joint = np.zeros(2,dtype=np.float64)
 
-        joint = point + (d/norm)*vector
+        # joint = point + (d/norm)*vector
 
-        return joint
+        # return joint
     
     @staticmethod
     def estimate_joint_no_theta(joint_pos, marker_pos, d):
@@ -863,7 +864,6 @@ if __name__ == '__main__':
             whether_firstframe = False
         else:
             frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, whether_firstframe)
-            if calc_intersection: print("fingertip(abs):", tracker.referenceFingertip)
         # # Use the original frame instead of creating a copy
         # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
         # except Exception as err: continue
@@ -903,10 +903,11 @@ if __name__ == '__main__':
     # Set the desired output video path
     
     tracker.store_video(frames_to_store,output_video_fps)
-    if calc_intersection:
-        print("fingertip(to MCP):", tracker.fingertip_pos_list)
-        print("angle1(to MCP):",tracker.angle1_pos_list)
-        tracker.save_trajectory()
-    else:
+
+    # Let either of them work by switching True/False
+    if True:
         tracker.store_data(measure,output_video_fps)
+    else:
+        tracker.save_trajectory()
+
     print(tracker.video_pos_file_url)
