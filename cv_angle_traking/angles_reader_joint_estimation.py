@@ -193,7 +193,7 @@ class AngleTracker(object): # TODO
                 _mask = _mask>0.5
             
             markers_masks.append( _mask )
-
+            
         if True:
             mask_in_one = np.vstack((markers_masks[0],markers_masks[1],markers_masks[2],markers_masks[3]))
             cv2.imshow("Mask", 255 * np.uint8(mask_in_one))

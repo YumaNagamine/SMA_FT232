@@ -79,20 +79,20 @@ class AngleTracker(AsyncVideoSaver):
         self.video_pos_file_url = "C:/Users/SAWALAB/Desktop/projects/SMA_FT232/LOG/realtime/pos.json"
 
         if self.color_mode == 0: # Lab
-            self.marker_tolerance_L = [75,50,20]#int(0.08 * 255)q
-            self.marker_tolerance_a = [30,45,17]# int(0.09 * 255)# red -> green
+            self.marker_tolerance_L = [40,40,15]#int(0.08 * 255)q
+            self.marker_tolerance_a = [30,45,15]# int(0.09 * 255)# red -> green
             self.marker_tolerance_b = [40,20,15]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.marker_tolerance_L = int(0.5 * 255)
             self.marker_tolerance_a = int(0.2 * 255)# red -> green
             self.marker_tolerance_b = int(0.2 * 255)# Yellow -> Blue  
 
-        # self.marker_rangers = [ #[Low Lhigh alow ahigh blow bhigh]] # SC01
-        #                [ [35,142],[132,163],[56,92]], # Marker A
-        #                [ [118,189],[139,187],[137,212]], # Marker B
-        #                [ [87,134],[76,108],[106,132]], # Marker C
-        #                [ [104,175],[109,127],[149,232]], # Marker D 
-        #                 ] # under the condition of light: 25%
+        self.marker_rangers = [ #[Low Lhigh alow ahigh blow bhigh]] # SC01
+                       [ [100,220],[160,220],[60,160]], # Marker A
+                       [ [100,215],[70,190],[30,80]], # Marker B
+                       [ [180,210],[55,85],[120,180]], # Marker C
+                       [ [150,235],[80,90],[100,120]], # Marker D 
+                        ]
         self._point_counter = 0
         self.marker_position_frame0 = []
         for _ in range(self.num_marker_sets):self.marker_position_frame0.append([0,0])
@@ -183,10 +183,17 @@ class AngleTracker(AsyncVideoSaver):
                         angle_radians = np.arccos(cosine_theta)
                         angle_degrees = 180 + np.degrees(angle_radians)
 
+
         except Exception as err:
             return []
 
+
+        if index == 0 or index == 1 :#or index == 2:
+            if angle_degrees > 180:
+                angle_degrees = 360 - angle_degrees
+   
         return angle_degrees
+    
     
     @staticmethod
     def calculate_vector(point1, point2):
@@ -222,7 +229,7 @@ class AngleTracker(AsyncVideoSaver):
             markers_masks.append( _mask )
         
         if True: # Display masks in a cv high gui window
-            mask_in_one = np.vstack((markers_masks[0],markers_masks[1],markers_masks[2],markers_masks[3]))
+            mask_in_one = np.vstack((markers_masks[0],markers_masks[1],markers_masks[2]))
             # mask_in_one = np.vstack((markers_masks[2]))
             # print("!!!!:",type(_mask))
             # cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
@@ -273,6 +280,8 @@ class AngleTracker(AsyncVideoSaver):
                 cv2.putText(self.frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), thickness = 1)
                 self.store_point_pos()# TODO
                 time.sleep(0.6);break
+            
+        self.MCP_pos = self.marker_position_frame0.pop()
 
         for _i,_pos in enumerate(self.marker_position_frame0):
             # Get color dara from lab img
@@ -305,9 +314,9 @@ class AngleTracker(AsyncVideoSaver):
 
     def extract_angle(self):
         # Convert the input frame to the CIELAB color space
-        d_purple_to_PIP = 60
-        d_red_to_DIP = 45
-        d_blue_to_fingertip = 100
+        d_purple_to_PIP = 50
+        d_red_to_DIP = 25
+        d_blue_to_fingertip = 90
 
         cielab_frame = cv2.cvtColor(self.frame, cv2.COLOR_RGB2Lab)
 
@@ -538,6 +547,18 @@ class AngleTracker(AsyncVideoSaver):
     #     out = cv2.VideoWriter(self.output_video_url, fourcc, fps, (width, height))
     #     for frame in frames:out.write(frame)
     #     out.release()
+    @staticmethod
+    def estimate_joint_no_theta(joint_pos, marker_pos, d):
+        # d : distance between next joint and marker
+        joint_pos = np.array(joint_pos)  #start point
+        marker_pos = np.array(marker_pos)  #end point
+        vec = marker_pos - joint_pos
+        norm = np.linalg.norm(vec)
+        estimated_joint = marker_pos + (d/norm)*vec
+        estimated_joint = np.array(estimated_joint, dtype=np.int64)
+
+        return estimated_joint
+
 
 
 if __name__ == "__main__":
@@ -656,12 +677,19 @@ if __name__ == "__main__":
             frame_times.append(cur_time)
 
             if True: #read angles
-                noneedframe, angle_0, angle_1, angle_2  = saver.extract_angle()
+                frame_with_text, angle_0, angle_1, angle_2  = saver.extract_angle()
                 angles = [angle_0, angle_1, angle_2]
                 # print(angles)
                 # process_share_dict['angles'] = [angle_0, angle_1, angle_2]
                 # print(process_share_dict['angles'])
                 cv2.imshow('Video Preview', saver.frame)
+
+                if True: # write angles on frame
+                    cv2.putText(frame_raw, f'angle0 :{angle_0}',(100, 210), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
+                    cv2.putText(frame_raw, f'angle1 :{angle_1}',(100, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
+                    cv2.putText(frame_raw, f'angle2 :{angle_2}',(100, 270), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
+
+
 
             if True: #frame_id % int(actual_fps // 20) == 0:  # 每S两次
                 if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
@@ -671,7 +699,7 @@ if __name__ == "__main__":
                 
                 cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}',
                              (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                
+
             # if frame_id % int(actual_fps // 20) == 0:  # 每S两次
                 # deepcopy. frame_raw(800,600) 
                 # frame_raw_copied = frame_raw.deepcopy()
@@ -692,6 +720,7 @@ if __name__ == "__main__":
                  
 
         if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
+            cap.release()
             break
         
     cap.release()
