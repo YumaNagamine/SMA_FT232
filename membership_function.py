@@ -50,9 +50,7 @@ def slope_func(x, left, right):
     return y
 
 def slope_func_np(x, left, right):
-    
     a, b = LinearFunc_coef(left, right)  
-
     y = np.where(
         (x <= left[0]), left[1],
         np.where(
@@ -60,7 +58,6 @@ def slope_func_np(x, left, right):
             a * x + b
         )
     )
-
     return y
 
 def normal_three_membership(x, tri_param, up_param, down_param): # consist of downhill, triangle, uphill
@@ -75,13 +72,13 @@ def normal_three_membership(x, tri_param, up_param, down_param): # consist of do
 def seven_memdegree(x, param): # for former part of if-then rules. Return value of NB, NM, NS, ZE, PS, PM, PB
     # param should be [center of PS, center of PM, center of PB]
     value = np.zeros(7, dtype=np.float64)
-    value[0] = slope_func_np(x, -param[2], -param[1])
-    value[1] = triangle_func_np(x, -param[2], -param[1], -param[0])
-    value[2] = triangle_func_np(x, -param[1], -param[0], 0)
-    value[3] = triangle_func_np(x, -param[0], 0, param[0])
-    value[4] = triangle_func_np(x, 0, param[0], param[1])
-    value[5] = triangle_func_np(x, param[0], param[1], param[2])
-    value[6] = slope_func_np(x, param[1], param[2])
+    value[0] = slope_func_np(x, [-param[2],1], [-param[1],0])
+    value[1] = triangle_func_np(x, [-param[2],0], [-param[1],1], [-param[0],0])
+    value[2] = triangle_func_np(x, [-param[1],0], [-param[0],1], [0,0])
+    value[3] = triangle_func_np(x, [-param[0],0], [0,1], [param[0],0])
+    value[4] = triangle_func_np(x, [0,0], [param[0],1], [param[1],0])
+    value[5] = triangle_func_np(x, [param[0],0], [param[1],1], [param[2],0])
+    value[6] = slope_func_np(x, [param[1],0], [param[2],1])
 
     return value
 
@@ -135,32 +132,42 @@ def get_processed_membershipfunc_seven(x, param, membership_degree, order):
     y4 = triangle_func_np(x, [param[3], 0], [param[4], 1], [param[5], 0]) # PS
     y5 = triangle_func_np(x, [param[4], 0], [param[5], 1], [param[6], 0]) # PM
     y6 = triangle_func_np(x, [param[5], 0], [param[6], 1], [param[6]+distance, 0]) # PB
+    zeros = np.zeros(len(x))
     temp_list = []
-
     for index, num in enumerate(order):
         if index == 0:
             y0 = np.minimum(membership_degree[num],y0)
-            if not np.all(y0 == 0): temp_list.append(y0)
+            if not np.all(y0 == 0): 
+                temp_list.append(y0)
         elif index == 1:
             y1 = np.minimum(membership_degree[num],y1)
-            if not np.all(y1 == 0): temp_list.append(y1)
+            if not np.all(y1 == 0): 
+                temp_list.append(y1)
         elif index == 2:
             y2 = np.minimum(membership_degree[num],y2)
-            if not np.all(y2 == 0): temp_list.append(y2)
+            if not np.all(y2 == 0): 
+                temp_list.append(y2)
         elif index == 3:
             y3 = np.minimum(membership_degree[num],y3)
-            if not np.all(y3 == 0): temp_list.append(y3)
+            if not np.all(y3 == 0): 
+                temp_list.append(y3)
         elif index == 4:
             y4 = np.minimum(membership_degree[num],y4)
-            if not np.all(y4 == 0): temp_list.append(y4)
+            if not np.all(y4 == 0): 
+                temp_list.append(y4)
         elif index == 5:
             y5 = np.minimum(membership_degree[num],y5)
-            if not np.all(y5 == 0): temp_list.append(y5)
+            if not np.all(y5 == 0): 
+                temp_list.append(y5)
         elif index == 6:
             y6 = np.minimum(membership_degree[num],y6)
-            if not np.all(y6 == 0): temp_list.append(y6)
-
-    y = np.vstack((temp_list[0], temp_list[1]))
+            if not np.all(y6 == 0): 
+                temp_list.append(y6)
+    
+    if len(temp_list) < 3:
+        for _ in range(3-len(temp_list)):
+            temp_list.append(zeros)
+    y = np.vstack((temp_list[0], temp_list[1], temp_list[2]))
 
     return y
 
