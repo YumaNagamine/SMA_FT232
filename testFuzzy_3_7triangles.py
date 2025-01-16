@@ -1,4 +1,4 @@
-# I would like to thank following libraries:
+# Use this program to control
 import numpy as np
 import time
 import membership_function as mf
@@ -19,11 +19,13 @@ class FUZZYCONTROL():
     def __init__(self):
         self.actuator_device = []
         self.channels = PWMGENERATOR.CH_EVEN
+        self.flag_for_forcequit == False
 
         self.output_levels = np.zeros(7)
 
         self.connect()
         self.angle_history = np.zeros(4)
+        self.DR_history = np.zeros(8, dtype=np.float32)
 
         print("\n\nFuzzy contorller established")
 
@@ -77,6 +79,21 @@ class FUZZYCONTROL():
         # for ch in self.out_levels: ch.set(0)
 
         self.apply_DR(retry=False)
+
+    def ForceQuitForSafety(self):
+        if not self.flag_for_forcequit:
+            if np.any(self.output_levels > 0.98):
+                # self.index = np.where(self.output_levels > 0.98)[0]
+                self.flag_for_forcequit = True
+                self.highDRinitialTime = time.perf_counter()
+        else:
+            if time.perf_counter-self.highDRinitialTime > 1.0:
+                self.stop_DR()
+                print('Force Quit for Safty...Quit program by Pressing Ctrl+C')
+                sys.exit()
+            if np.all(self.output_levels < 0.95):
+                self.flag_for_forcequit = False
+                return
 
 
     # def input_target(self, target, current_angles):
@@ -282,8 +299,8 @@ class FUZZYCONTROL():
 
     def setting_visualize_functions_realtime(self): # To visualize output
         self.fig, self.axes = plt.subplots(1,6)
-            
-
+    
+        
     # def visualize_functions_realtime(self, interval, x, y_1, y_2): # To visualize output, used in while loooooop
     #     # y_i must consist of 3 data of y
     #     if self.mode == ['flex', 'flex']:
@@ -327,7 +344,10 @@ class FUZZYCONTROL():
         current_angles = np.array(current_angles)
         temp = np.hstack(current_time, current_angles)
         self.angle_history = np.vstack(self.angle_history, temp)
-
+    
+    def DR_recorder(self, current_time):
+        temp = np.hstack(current_time, self.output_levels)
+        self.DR_history = np.vstack(self.DR_history, temp)
 
     def angle_plotter(self):
         plt.plot(self.angle_history[1:, 0], self.angle_history[1:, 1], label='angle0')
@@ -339,7 +359,9 @@ class FUZZYCONTROL():
         plt.legend()
         plt.show()
 
-    
+    def DR_plotter(self):
+        
+        pass
 
 if __name__ == "__main__":
     import os,sys
@@ -452,7 +474,7 @@ if __name__ == "__main__":
                         timemeasure = time.perf_counter()
                         print('outout duty ratio', fuzzy.output_levels)
                         print(t)
-
+                        fuzzy.ForceQuitForSafety()
                         if visualize:
                             fuzzy.visualize_functions_realtime(0.01, fuzzy.x, fuzzy.y1, fuzzy.y2, fuzzy.y3, fuzzy.y4, fuzzy.y5, fuzzy.y6)
                 if record_angle:
@@ -471,7 +493,6 @@ if __name__ == "__main__":
                     
                     cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}',
                                 (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
             if cv2.waitKey(1) & 0xFF == ord('q'): 
                 fuzzy.stop_DR()
                 break
