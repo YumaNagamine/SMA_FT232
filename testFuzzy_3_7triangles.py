@@ -360,8 +360,18 @@ class FUZZYCONTROL():
         plt.show()
 
     def DR_plotter(self):
-        
-        pass
+        plt.plot(self.DR_history[1:, 0], self.DR_history[1:, 1], label='FDP')
+        plt.plot(self.DR_history[1:, 0], self.DR_history[1:, 2], label='FDS')
+        plt.plot(self.DR_history[1:, 0], self.DR_history[1:, 3], label='Extensor')
+        plt.plot(self.DR_history[1:, 0], self.DR_history[1:, 4], label='LM')
+        plt.plot(self.DR_history[1:, 0], self.DR_history[1:, 5], label='IDM')
+        plt.plot(self.DR_history[1:, 0], self.DR_history[1:, 6], label='IPM')
+
+        plt.xlabel = 'time'
+        plt.ylabel = 'Duty Ratio'
+        plt.grid()
+        plt.legend()
+        plt.show()
 
 if __name__ == "__main__":
     import os,sys
@@ -425,8 +435,9 @@ if __name__ == "__main__":
     tracker = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor')
     control = True
     control_interval = 1 # duty ratio adjustment interval
-    visualize = True
+    visualize = False
     record_angle = False
+    record_DR =  False
 
 
     
@@ -480,6 +491,9 @@ if __name__ == "__main__":
                 if record_angle:
                     time_for_record = time.perf_counter() - initial_time
                     fuzzy.angle_recorder(time_for_record, angles)
+                if record_DR:
+                    time_for_record = time.perf_counter() - initial_time
+                    fuzzy.DR_recorder(time_for_record)
 
                 frame_id += 1
                 frame_times.append(cur_time)
@@ -505,3 +519,4 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
     if is_recod_video: tracker.finalize()
     if record_angle: fuzzy.angle_plotter()
+    if record_DR: fuzzy.DR_plotter()
