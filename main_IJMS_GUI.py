@@ -1,4 +1,4 @@
-# MAINLY FOR FINGER ACTUATION TEST 
+# MAINLY FOR FINGER ACTUATION 
 # * Multi Process version
 # Class of SMA single finger robot 
 # Created by Askar. Liu @ 20240729
@@ -358,13 +358,14 @@ def process_camera(pid,process_share_dict={}):
     from camera.ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver as VideoSaver
     from cv_angle_traking.angles_reader_copy import AngleTracker
     ## Create CAM obj
-    cam_num =  0
+    cam_num = 0
     
     is_lighting = True
     is_recod_video = True    
     cam_name = 'AR0234' # 'OV7251' #  
     
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT
+
 
     
     if cam_name == 'AR0234': # Aptina AR0234
@@ -450,10 +451,10 @@ def process_camera(pid,process_share_dict={}):
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
 
     tracker = AngleTracker(video_name=video_file_name, denoising_mode='monocolor')
-
+    cv_choose_wd_name = 'Video Preview'
     while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
-        ret, frame_raw = cap.read()   
+        ret, frame_raw = cap.read()
         
 
         if ret:
