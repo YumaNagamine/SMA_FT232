@@ -186,6 +186,7 @@ class FUZZYCONTROL():
         self.du = self.controlmethod(err)
         print('du:', self.du) 
         self.output_levels = np.array(self.output_levels + self.du)
+        self.limit_for_safety(self.output_levels)
         self.output_levels = self.limit_dutyratio(self.output_levels, 1.0)
         
 
@@ -271,6 +272,22 @@ class FUZZYCONTROL():
     @staticmethod
     def limit_dutyratio(dutyratio, upperlimit):
         return np.clip(dutyratio, 0, upperlimit)
+    @staticmethod
+    def limit_for_safety(dutyratio):
+        if (dutyratio[0]> 0.7 or dutyratio[1]> 0.7) and (dutyratio[2]>0.4 or dutyratio[3]>0.4):
+            print('stop control due to the competition of FLEXOR and EXTENSOR. FLEXOR is stronger!')
+            print('DR:', dutyratio)
+            FUZZYCONTROL.stop_DR()
+            print('Press Ctrl + C ...')
+            while True:
+                pass
+        if (dutyratio[0]> 0.4 or dutyratio[1]> 0.4) and (dutyratio[2]>0.7 or dutyratio[3]>0.7):
+            print('stop control due to the competition of FLEXOR and EXTENSOR. EXTENSOR is stronger!')
+            print('DR:', dutyratio)
+            FUZZYCONTROL.stop_DR()
+            print('Press Ctrl + C ...')
+            while True:
+                pass
     
     @staticmethod
     def visualize_functions(title, x, y0,y1=0,y2=0):
