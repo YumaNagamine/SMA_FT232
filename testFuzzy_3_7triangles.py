@@ -19,7 +19,7 @@ class FUZZYCONTROL():
     def __init__(self):
         self.actuator_device = []
         self.channels = PWMGENERATOR.CH_EVEN
-        self.flag_for_forcequit == False
+        self.flag_for_forcequit = False
 
         self.output_levels = np.zeros(7)
 
@@ -87,7 +87,7 @@ class FUZZYCONTROL():
                 self.flag_for_forcequit = True
                 self.highDRinitialTime = time.perf_counter()
         else:
-            if time.perf_counter-self.highDRinitialTime > 1.0:
+            if time.perf_counter-self.highDRinitialTime > 0.5:
                 self.stop_DR()
                 print('Force Quit for Safty...Quit program by Pressing Ctrl+C')
                 sys.exit()

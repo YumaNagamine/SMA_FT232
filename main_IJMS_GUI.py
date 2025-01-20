@@ -455,7 +455,7 @@ def process_camera(pid,process_share_dict={}):
     while True: # Video Loop // 90 Hz
         cur_time = time.perf_counter()
         ret, frame_raw = cap.read()
-        
+        # print(ret)
 
         if ret:
             if frame_id == 0: tracker.acquire_marker_color(frame_raw,cv_choose_wd_name,tracker)
