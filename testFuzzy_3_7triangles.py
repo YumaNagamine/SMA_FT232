@@ -47,6 +47,7 @@ class FUZZYCONTROL():
         self.weights_IPM = np.array([0,0,1])
         self.weights_IDM = np.array([0,0,1])
         self.weights_LM = np.array([0,0,1]) 
+        self.target = np.zeros(3, dtype=np.int32)
 
     def connect(self):
         url_test_len = 4
@@ -195,7 +196,7 @@ class FUZZYCONTROL():
         return np.array([angle0, angle1, angle2])
 
 
-    def control_method(self, err):
+    def whole_control_method(self, err):
         # if self.mode == ['flex','flex'] or ['extend', 'flex']:
         #     self.du = self.controlmethod_flex(err)
         # elif self.mode == 'extend':
@@ -241,51 +242,44 @@ class FUZZYCONTROL():
         # FDP output 
         self.y1 = mf.get_processed_membershipfunc_seven(x, centers, membership_degree_FDP, order=[6,5,4,3,2,1,0])
         du[0] = mf.calc_centroid(x, self.y1[0], self.y1[1], self.y1[2], dx) # flexor0 output
-        print('1')
         # FDS output 
         self.y2 = mf.get_processed_membershipfunc_seven(x, centers, membership_degree_FDS, order=[6,5,4,3,2,1,0])
         du[1] = mf.calc_centroid(x, self.y2[0], self.y2[1], self.y2[2], dx) # flexor1 output
-        print('2')
        
         # extensors output
         self.y3 = mf.get_processed_membershipfunc_seven(x, centers, membership_degree_extensors, order=[0,1,2,3,4,5,6])
         du[2] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor0 output
         du[3] = mf.calc_centroid(x, self.y3[0], self.y3[1], self.y3[2], dx) # extensor1 output
-        print('3')
 
         # LM output
         self.y4 = mf.get_processed_membershipfunc_seven(x, centers2, membership_degree_LM, order=[6,5,4,3,2,1,0])
         du[4] = mf.calc_centroid(x, self.y4[0], self.y4[1], self.y4[2], dx)
-        print('4')
      
         # IDM output
         self.y5 = mf.get_processed_membershipfunc_seven(x, centers2, membership_degree_IDM, order=[6,5,4,3,2,1,0])
         du[5] = mf.calc_centroid(x, self.y5[0], self.y5[1], self.y5[2], dx)
-        print('5')
      
         # IPM output
         self.y6 = mf.get_processed_membershipfunc_seven(x, centers2, membership_degree_IPM, order=[6,5,4,3,2,1,0])
         du[6] = mf.calc_centroid(x, self.y6[0], self.y6[1], self.y6[2], dx)
-        print('6')
         
         return du
     
-    def controlmethod_flex_only_DIP(self, err):
-        err = np.array(err)        
-        du = np.zeros(7, dtype=np.float32)
-        return du
+    # def controlmethod_flex_only_DIP(self, err):
+    #     err = np.array(err)        
+    #     du = np.zeros(7, dtype=np.float32)
+    #     return du
 
     
     def Fuzzy_process(self, current_angles, firstframe):
         current_angles = np.array(current_angles)
         if firstframe:
-            self.control_method(self.err)
+            self.whole_control_method(self.err)
         else:
             err = self.target - current_angles
-            self.control_method(err)
-
+            self.whole_control_method(err)
         self.apply_DR()
-    
+
     @staticmethod
     def limit_dutyratio(dutyratio, upperlimit):
         return np.clip(dutyratio, 0, upperlimit)
@@ -358,13 +352,15 @@ class FUZZYCONTROL():
         plt.pause(interval)
 
     def angle_recorder(self, current_time, current_angles):
+        current_time = np.array([current_time])
         current_angles = np.array(current_angles)
-        temp = np.hstack(current_time, current_angles)
-        self.angle_history = np.vstack(self.angle_history, temp)
+        temp = np.hstack((current_time, current_angles))
+        self.angle_history = np.vstack((self.angle_history, temp))
     
     def DR_recorder(self, current_time):
-        temp = np.hstack(current_time, self.output_levels)
-        self.DR_history = np.vstack(self.DR_history, temp)
+        current_time = np.array([current_time])
+        temp = np.hstack((current_time, self.output_levels))
+        self.DR_history = np.vstack((self.DR_history, temp))
 
     def angle_plotter(self):
         plt.plot(self.angle_history[1:, 0], self.angle_history[1:, 1], label='angle0')
@@ -450,13 +446,16 @@ if __name__ == "__main__":
     filename = 'no meaning'
     fuzzy = FUZZYCONTROL()
     tracker = AngleTracker(video_file_name, fourcc, target_fps, resolution, 'monocolor')
-    control = True
     control_interval = 1 # duty ratio adjustment interval
+    
+    #Optional
+    control = True
     visualize = False
-    record_angle = False
-    record_DR =  False
-
-
+    record_angle = True
+    record_DR =  True
+    # target_mode = 'fixed'
+    target_mode = 'time varying'
+    target = np.zeros(3, dtype=np.int64)
     
     while True:
         cur_time = time.perf_counter()
@@ -470,17 +469,26 @@ if __name__ == "__main__":
                     tracker.acquire_marker_color()
                     firstangle = [tracker.first_angles[1], tracker.first_angles[2], tracker.first_angles[3]]
                     print('first angle:',firstangle)
-                    target = fuzzy.input_target(firstangle)
-                    if visualize: fuzzy.setting_visualize_functions_realtime()
-                    timemeasure = time.perf_counter()
+                    if target_mode == 'fixed':
+                        target = fuzzy.input_target(firstangle)
+                    
+                    timemeasure = time.perf_counter() #timemeasure is updated later
                     initial_time = time.perf_counter()
+                    
+                    if target_mode == 'time varying':
+                        fuzzy.target[0] = mf.target_function(time.perf_counter()-initial_time, 155,[5,160],[10,150])
+                        fuzzy.target[1] = mf.target_function(time.perf_counter()-initial_time, 140,[5,143],[10,140])
+                        fuzzy.target[2] = mf.target_function(time.perf_counter()-initial_time, 130,[5,150],[10,120])
+                        fuzzy.err = np.array(firstangle) - fuzzy.target
+                        target = fuzzy.target
+                    if visualize: fuzzy.setting_visualize_functions_realtime()
                     # whether_firstframe = False
                 if True:
                     # read angles and calculate error
                     if frame_id == 0 or frame_id % control_interval == 0:
                         noneedframe, angle_0, angle_1, angle_2 = tracker.extract_angle()
-                        print(angle_0, angle_1, angle_2)
-                        if angle_0 == []:print('cannot recognize angle0 !')
+                        print('angles: ', angle_0, angle_1, angle_2)
+                        # if angle_0 == []:print('cannot recognize angle0 !')
                         angles = np.array([angle_0, angle_1, angle_2])
                         currrent_error =  angles - target
                         if True: # write angles on frame
@@ -488,20 +496,19 @@ if __name__ == "__main__":
                             cv2.putText(frame_raw, f'angle1 :{angle_1}',(100, 240), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
                             cv2.putText(frame_raw, f'angle2 :{angle_2}',(100, 270), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
                             cv2.putText(frame_raw, f'target:{target}',(100, 300), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2, cv2.LINE_AA)
-                            
                         cv2.imshow('Video Preview', tracker.frame)
 
                 
                     
                 if control: # control part
                     if frame_id == 0 or frame_id % control_interval == 0: 
-
                         fuzzy.Fuzzy_process(angles, whether_firstframe)
                         whether_firstframe = False
                         t = time.perf_counter() - timemeasure
                         timemeasure = time.perf_counter()
-                        print('outout duty ratio', fuzzy.output_levels)
-                        print(t)
+
+                        print('output duty ratio: ', fuzzy.output_levels)
+                        print('current time: ', t)
                         fuzzy.ForceQuitForSafety()
                         if visualize:
                             fuzzy.visualize_functions_realtime(0.01, fuzzy.x, fuzzy.y1, fuzzy.y2, fuzzy.y3, fuzzy.y4, fuzzy.y5, fuzzy.y6)
@@ -511,10 +518,8 @@ if __name__ == "__main__":
                 if record_DR:
                     time_for_record = time.perf_counter() - initial_time
                     fuzzy.DR_recorder(time_for_record)
-
                 frame_id += 1
                 frame_times.append(cur_time)
-
 
                 if True:
                     if frame_id > 45: cur_fps = 30 / (cur_time - frame_times[0])
@@ -524,6 +529,8 @@ if __name__ == "__main__":
                     
                     cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}',
                                 (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                print('---------------End of one loop----------------- \n') # for debug
+            
             if cv2.waitKey(1) & 0xFF == ord('q'): 
                 fuzzy.stop_DR()
                 break
