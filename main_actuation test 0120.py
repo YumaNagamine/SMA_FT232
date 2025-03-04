@@ -1,3 +1,7 @@
+# TEST FOR ACTUATION and RECORD VIDEO, NO ANGLE READER
+# updated by nagamine so that it can work with new finger, Jan 20th
+# yet cannnot record...　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+
 # * Multi Process version
 # Class of SMA single finger robot 
 # Created by Askar. Liu @ 20231230
@@ -254,7 +258,9 @@ class exprimentGUI():
         # url_0 = os.environ.get('FTDI_DEVICE', 'ftdi://ftdi:232h:0:FF/0')
         actuator_device = []
         for _i in range(url_test_len):
-            _url = os.environ.get('FTDI_DEVICE', 'ftdi://ftdi:232h:0:F'+ hex(0xF-_i)[-1]+'/0')
+            # _url = os.environ.get('FTDI_DEVICE', 'ftdi://ftdi:232h:0:F'+ hex(0xF-_i)[-1]+'/0')
+            _url = os.environ.get('FTDI_DEVICE', 'ftdi:///1')
+            
             try: 
                 print("\nConnecting: ",_url)
                 actuator_device = ctrlProcess(_url,'ADC001')
