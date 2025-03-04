@@ -86,8 +86,11 @@ def calc_centroid(x, y0, y1, y2, dx): # y is array
     y = np.maximum.reduce([y0, y1, y2])
     num = np.sum(x*y*dx)
     den = np.sum(y*dx)
-    centroid = num/den
-    return centroid
+    if den !=0:
+        centroid = num/den
+        return centroid
+    else:
+        return 0
 
 def weighting(weights, membership_degree):
     weights = np.array(weights)
