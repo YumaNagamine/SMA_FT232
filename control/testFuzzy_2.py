@@ -1,6 +1,6 @@
 import numpy as np
 import time
-import control.membership_function as mf
+import control.membership_functions as mf
 # from cv_angle_traking.angles_reader_for_new_finger import AngleTracker
 from camera.NOGUI_ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker
 from SMA_finger.SMA_finger_MP import *
