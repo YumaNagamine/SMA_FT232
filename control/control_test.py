@@ -6,7 +6,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 import numpy as np
 from cv_angle_traking.angles_reader_joint_estimation import AngleTracker
-import membership_function as mf
+import control.membership_functions as mf
 from FuzzyFeedback import FuzzyFeedback
 from network import NeuralNetwork
-from control.CameraSetting import CameraSetting
+from control.CameraSetting import Camera
