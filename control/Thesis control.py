@@ -1,7 +1,7 @@
 # Use this program to control FOR THESIS, ONLY FDP and Extensor
 import numpy as np
 import time
-import control.membership_function as mf
+import control.membership_functions as mf
 # from cv_angle_traking.angles_reader_for_new_finger import AngleTracker
 # from camera.NOGUI_ASYNCSAVER_with_ANGLESREADER import AsyncVideoSaver, AngleTracker
 from camera.NOGUI_ASYNCSAVER_with_JOINT_ESTIMATION import AsyncVideoSaver, AngleTracker

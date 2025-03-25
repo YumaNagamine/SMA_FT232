@@ -1,4 +1,4 @@
-# This class is for feedback control created by Nagemine on March 5th 
+# This class is for feedforward control created by Nagemine on March 24th 
 
 import os, sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -8,6 +8,6 @@ import numpy as np
 from cv_angle_traking.angles_reader_joint_estimation import AngleTracker
 import control.membership_functions as mf
 
-class FuzzyFeedback():
+class FuzzyFeedforward():
     def __init__(self):
         pass
