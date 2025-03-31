@@ -1,4 +1,3 @@
-# %%
 import time,os
 os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 import cv2
@@ -450,7 +449,6 @@ class AngleTracker(object): # TODO
         out.release()
 
 
-# %%
 if __name__ == '__main__':
     import os,sys,json
     parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
