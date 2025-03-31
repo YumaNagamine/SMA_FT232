@@ -25,11 +25,12 @@ class AngleTracker(object): # TODO
         self.color_mode = 0 # 0: Lab,1: Rgb
         self.num_maker_sets = 4
         self.denoising_mode = denoising_mode# 'monocolor'
+        self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
 
         if self.color_mode ==0: # Lab
-            self.maker_tolerance_L = 20#int(0.08 * 255)
-            self.maker_tolerance_a = 30# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = 30# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)
+            self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [40,20,15,30]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
@@ -228,8 +229,8 @@ class AngleTracker(object): # TODO
             # Get color dara from lab img
 
             # Cal tolerance range
-            upper_limit = frame_to_segment[_pos[1]][_pos[0]] + [self.maker_tolerance_L, self.maker_tolerance_a, self.maker_tolerance_b]  
-            lower_limit = frame_to_segment[_pos[1]][_pos[0]] - [self.maker_tolerance_L, self.maker_tolerance_a, self.maker_tolerance_b]
+            upper_limit = frame_to_segment[_pos[1]][_pos[0]] + [self.maker_tolerance_L[_i], self.maker_tolerance_a[_i], self.maker_tolerance_b[_i]]  
+            lower_limit = frame_to_segment[_pos[1]][_pos[0]] - [self.maker_tolerance_L[_i], self.maker_tolerance_a[_i], self.maker_tolerance_b[_i]]
             # print(upper_limit,lower_limit);exit() # [146 171  82] [122 147  58]
             marker_rangers_ch = []
             # Save to variable
@@ -386,7 +387,7 @@ class AngleTracker(object): # TODO
             frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format((angle_0)), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
             frame = self.add_text_to_frame(frame, "ANGLE 1: {}".format((angle_1)), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
             frame = self.add_text_to_frame(frame, "ANGLE 2: {}".format((angle_2)), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
-
+            
         # except Exception as err:
         #     print(color_name,' Failed!:',err)
         #     return frame,[],[],[]

@@ -527,9 +527,15 @@ class ModifyMarkerPositions(AngleTracker):
         pass
     def calculate_angle(self, line1, line2, index): #over ride
         pass
-    def store_raw_data(self, data): # save time, each angles, frame id, 6 x raw marker position data to CSV file
-        df_angle = pd.DataFrame(data=data, columns=["time","frame","angle0", "angle1", "angle2", 
+    def store_raw_data(self, measure, set_fps=30): # save time, each angles, frame id, 6 x raw marker position data to CSV file
+        df_angle = pd.DataFrame(data=measure, columns=["frame","angle0", "angle1", "angle2", 
                                                     "marker pos0","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",])
+        df_angle["time"] = df_angle["frame"]/set_fps
+        df_angle.to_csv(os.path.join(self.output_folder_path, f"{video_name.split('.')[0]}_extracted.csv"),index=False)
+        np_data = np.array(measure)[:, ::-1]
+        print("measure:", type(measure))
+        print(type(np_data), np_data)
+        saveFigure(np_data, f"{video_name.split('.')[0]}_extracted.csv", ["angle_2","angle_1","angle_0","frame"], show_img=False, figure_mode='Single')
         
     def store_video(self,):
         pass
