@@ -516,10 +516,23 @@ class ModifyMarkerPositions(AngleTracker):
         self.distance = distance
         self.shift = shift
 
-    def rotate_vector(self):
-        pass
-    def shift_vector(self):
-        pass
+    def multiply_vector(self, vector, rate):
+        return rate * vector
+    
+    def rotate_vector(self, vector, theta): #To rotate vector by theta(rad). vector must be [a,b], dont give two dots.
+        rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+        new_vec = rotation_matrix @ vector
+        return new_vec
+    
+    def shift_markers(self, markers, d): # markers should be [distal, proximal], each element: [x,y]
+        markers = np.array(markers)
+        vector = markers[0] - markers[1] # 近位から遠位へのベクトル
+        rotate_matrix = np.array([[0,-1],[1,0]])
+        vertical_vector = rotate_matrix @ vector
+        shifter = vertical_vector * (d/np.linalg.norm(vertical_vector))
+        modified_markers = [markers[0]+shifter, markers[1]+shifter]
+        modified_markers = np.array(modified_markers)
+        return modified_markers
     
     def marker_discriminator_distalis(): #末節骨のマーカーを区別する　[遠位のマーカー　近位のマーカー]にする
         pass
@@ -530,7 +543,13 @@ class ModifyMarkerPositions(AngleTracker):
     def store_raw_data(self, data): # save time, each angles, frame id, 6 x raw marker position data to CSV file
         df_angle = pd.DataFrame(data=data, columns=["time","frame","angle0", "angle1", "angle2", 
                                                     "marker pos0","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",])
-        
+
+    @staticmethod
+    def calculate_distance(point0, point1):
+        point0 = np.array(point0)
+        point1 = np.array(point1)
+        return np.linalg.norm(point0-point1)
+
     def store_video(self,):
         pass
 if __name__ == "__main__":
