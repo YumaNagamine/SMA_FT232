@@ -11,17 +11,29 @@ from cv_angle_traking.angles_reader_multicolor import AngleTracker
 class ModifiedMarkers(AngleTracker):
     def __init__(self,video_name=[], denoising_mode='monocolor'):
         super.__init__(video_name=[], denoising_mode='monocolor')
-        pass
 
     def set_params(self, theta, distance, shift):
         self.theta = theta
         self.distance = distance
         self.shift = shift
 
-    def rotate_vector(self):
-        pass
-    def shift_vector(self):
-        pass
+    def multiply_vector(self, vector, rate):
+        return rate * vector
+    
+    def rotate_vector(self, vector, theta): #To rotate vector by theta(rad). vector must be [a,b], dont give two dots.
+        rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+        new_vec = rotation_matrix @ vector
+        return new_vec
+    
+    def shift_markers(self, markers, d): # markers should be [distal, proximal], each element: [x,y]
+        markers = np.array(markers)
+        vector = markers[0] - markers[1] # 近位から遠位へのベクトル
+        rotate_matrix = np.array([[0,-1],[1,0]])
+        vertical_vector = rotate_matrix @ vector
+        shifter = vertical_vector * (d/np.linalg.norm(vertical_vector))
+        modified_markers = [markers[0]+shifter, markers[1]+shifter]
+        modified_markers = np.array(modified_markers)
+        return modified_markers
     
     def marker_discriminator_distalis(self): #末節骨のマーカーを区別する　[遠位のマーカー　近位のマーカー]にする
         pass
@@ -29,6 +41,12 @@ class ModifiedMarkers(AngleTracker):
         pass
     # def calculate_angle(self, line1, line2, index): #over ride
     #     pass
+    @staticmethod
+    def calculate_distance(point0, point1):
+        point0 = np.array(point0)
+        point1 = np.array(point1)
+        return np.linalg.norm(point0-point1)
+
     def extract_angle(self, frame, swap, colors, modify=True): #over ride
         # Convert the input frame to the CIELAB color space
 
@@ -92,19 +110,30 @@ class ModifiedMarkers(AngleTracker):
 
 
                     #この辺にpoint_per_maskの順序を並べ替えるコードを書いたほうがいいかも？
+                    #マーカーの順序はpoint_per_mask=[遠位,近位]
 
                     if modify:
                         # このへんにマーカー位置を修正するコードを書く
                         # point_per_maskがマーカーの点なのでidxかindexの値に応じて処理を分ける
                         # 修正前のマーカーの位置と修正後のマーカーの位置両方を保存する
                         
-                        if idx == 0:
+                        if idx == 0: 
+                            modified_distal = point_per_mask[0]
+                            modified_proximal = point_per_mask[1]
                         if idx == 1:
-                            modified_x =
-                            modified_y =
+                            # marker_vec = point_per_mask[1] - point_per_mask[0]
+                            marker_vec = self.calculate_vector(point_per_mask[0], point_per_mask[1]) #遠位から近位へのベクトル
+                            rotated_vec = self.rotate_vector(marker_vec, self.theta)
+                            modified_distal = np.array(point_per_mask[0]) #遠位
+                            modified_proximal = modified_distal + rotated_vec #近位
+                            
                         if idx == 2:
+                            pass
 
-                        modified_point_per_mask.append((modified_x, modified_y))
+
+                        modified_point_per_mask.append(tuple(modified_distal))
+                        modified_point_per_mask.append(tuple(modified_proximal))
+                        print(f'for debug:\n marker index:{idx}, modified_point_per_mask: {modified_point_per_mask}')
 
 
                 if modify:
@@ -208,7 +237,7 @@ if __name__ == '__main__':
     frame_shift = 0
     output_video_fps = 30 # I dont know if its work
 
-    tracker = AngleTracker(video_name,denoising_mode = 'monocolor')
+    tracker = ModifiedMarkers(video_name,denoising_mode = 'monocolor')
     # Main logic
     cap = cv2.VideoCapture(tracker.video_path) 
     cap.set(cv2.CAP_PROP_POS_FRAMES, frame_shift)
