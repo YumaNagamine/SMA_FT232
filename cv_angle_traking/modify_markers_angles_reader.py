@@ -113,6 +113,7 @@ class ModifiedMarkers(AngleTracker):
                     #マーカーの順序はpoint_per_mask=[遠位,近位]
 
                     if modify:
+                        marker_vec = []
                         # このへんにマーカー位置を修正するコードを書く
                         # point_per_maskがマーカーの点なのでidxかindexの値に応じて処理を分ける
                         # 修正前のマーカーの位置と修正後のマーカーの位置両方を保存する
@@ -128,7 +129,8 @@ class ModifiedMarkers(AngleTracker):
                             modified_proximal = modified_distal + rotated_vec #近位
                             
                         if idx == 2:
-                            pass
+                            marker_vec = self.calculate_vector(point_per_mask[0],point_per_mask[1])
+                            self.shift_markers 
 
 
                         modified_point_per_mask.append(tuple(modified_distal))
@@ -138,9 +140,9 @@ class ModifiedMarkers(AngleTracker):
 
                 if modify:
                     for idx, point in enumerate(modified_point_per_mask):
-                        pass
+                        cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
                     for idx, point in enumerate(modified_point_per_mask):
-                        pass
+                        cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
                 else: # visualize circles on raw marker positions
                     for idx, point in enumerate(point_per_mask):
                         cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
