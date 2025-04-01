@@ -12,10 +12,9 @@ class ModifiedMarkers(AngleTracker):
     def __init__(self,video_name=[], denoising_mode='monocolor'):
         super.__init__(video_name=[], denoising_mode='monocolor')
 
-    def set_params(self, theta, distance, shift):
+    def set_params(self, theta, distance):
         self.theta = theta
         self.distance = distance
-        self.shift = shift
 
     def multiply_vector(self, vector, rate):
         return rate * vector
@@ -35,10 +34,27 @@ class ModifiedMarkers(AngleTracker):
         modified_markers = np.array(modified_markers)
         return modified_markers
     
-    def marker_discriminator_distalis(self): #末節骨のマーカーを区別する　[遠位のマーカー　近位のマーカー]にする
-        pass
-    def marker_discriminator(self): #中節骨と基節骨のマーカーを区別する　上と同様
-        pass
+            
+    def marker_discriminator(self, markers): #中節骨と基節骨のマーカーを区別する　上と同様
+        markers = np.array(markers)
+        distance0 = self.calculate_distance(self.palm_marker_position, markers[0])
+        distance1 = self.calculate_distance(self.palm_marker_position, markers[1])
+        if distance0 > distance1:
+            return markers
+        elif distance0 < distance1:
+            markers[0], markers[1] = markers[1], markers[0]
+            return markers
+
+    def marker_discriminator_distalis(self, markers): #末節骨のマーカーを区別する　[遠位のマーカー　近位のマーカー]にする
+        # distalmarker_mediaは中節骨の遠位のマーカー
+        distance0 = self.calculate_distance(self.media_distalis, markers[0])
+        distance1 = self.calculate_distance(self.media_distalis, markers[1])
+        if distance0 > distance1:
+            return markers
+        elif distance0 < distance1:
+            markers[0], markers[1] = markers[1], markers[0]
+
+            return markers
     # def calculate_angle(self, line1, line2, index): #over ride
     #     pass
     @staticmethod
@@ -64,7 +80,8 @@ class ModifiedMarkers(AngleTracker):
         colors_name = ["blue", "pink", "green", "yellow"]
 
         # Initialize a list to store points per frame
-        makerset_per_frame = []
+        markerset_per_frame = []
+        if modify:modified_markerset_per_frame=[]
 
         # Set the line padding value
         line_pad = 5  # Adjust this value as needed
@@ -92,9 +109,9 @@ class ModifiedMarkers(AngleTracker):
                 if modify: modified_point_per_mask = []
 
                 # If missed point, go next mask
-                if len(filtered_regions) < 2: 
+                if len(filtered_regions)<2 and (not color_name=="yellow"): 
                     point_per_mask.extend([(-1,-1),(-1,-1)]) 
-                    makerset_per_frame.append(point_per_mask)
+                    markerset_per_frame.append(point_per_mask)
                     continue
 
                 # Iterate over filtered regions in the mask
@@ -108,12 +125,21 @@ class ModifiedMarkers(AngleTracker):
                     # Append the centroid to the list of points for the mask
                     point_per_mask.append((centroid_x, centroid_y))
 
-
                     #この辺にpoint_per_maskの順序を並べ替えるコードを書いたほうがいいかも？
                     #マーカーの順序はpoint_per_mask=[遠位,近位]
+                    if idx == 0:
+                        point_per_mask = self.marker_discriminator_distalis(point_per_mask)
+                    
+                    elif idx == 1 or idx == 2:
+                        point_per_mask = self.marker_discriminator(point_per_mask)
+                        self.media_distalis = point_per_mask[0]
+                    elif idx == 3:
+                        self.palm_marker_position = np.array([centroid_x, centroid_y])
 
+                        #self.palm_marker_positionとself.media_distalisをクリックで指定した位置とするコードの設定が必要
+
+                        
                     if modify:
-                        marker_vec = []
                         # このへんにマーカー位置を修正するコードを書く
                         # point_per_maskがマーカーの点なのでidxかindexの値に応じて処理を分ける
                         # 修正前のマーカーの位置と修正後のマーカーの位置両方を保存する
@@ -129,16 +155,15 @@ class ModifiedMarkers(AngleTracker):
                             modified_proximal = modified_distal + rotated_vec #近位
                             
                         if idx == 2:
-                            marker_vec = self.calculate_vector(point_per_mask[0],point_per_mask[1])
-                            self.shift_markers 
-
-
+                            modified_markers = self.shift_markers(point_per_mask, self.distance)
+                            modified_distal, modified_proximal = modified_markers[0], modified_markers[1]
+                            
                         modified_point_per_mask.append(tuple(modified_distal))
                         modified_point_per_mask.append(tuple(modified_proximal))
                         print(f'for debug:\n marker index:{idx}, modified_point_per_mask: {modified_point_per_mask}')
 
 
-                if modify:
+                if modify: #visualize circles on modified marker positions
                     for idx, point in enumerate(modified_point_per_mask):
                         cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
                     for idx, point in enumerate(modified_point_per_mask):
@@ -146,29 +171,38 @@ class ModifiedMarkers(AngleTracker):
                 else: # visualize circles on raw marker positions
                     for idx, point in enumerate(point_per_mask):
                         cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
-
                     # Visualize circles for each point with increased radius
                     for idx, point in enumerate(point_per_mask):
                         cv2.circle(frame, (point[0], point[1]), radius=idx * 10 + 10, color=color, thickness=3)
 
-                if len(point_per_mask) <2:
+                if len(point_per_mask) <2 and (not color_name=="yellow"):
                     continue
                 # If direction vector is not initialized, calculate it from the first two points
                 if direction_vector is None:
                     direction_vector = self.calculate_vector(point_per_mask[1], point_per_mask[0])
 
-                # Calculate points for the line based on the direction vector and line padding
-                point1 = (int(point_per_mask[1][0] - line_pad * direction_vector[0]),
-                        int(point_per_mask[1][1] - line_pad * direction_vector[1]), )
+                if modify: #修正後のマーカーの位置に線を書くコード
+                    point1 = (int(modified_point_per_mask[1][0] - line_pad * direction_vector[0]),
+                            int(modified_point_per_mask[1][1] - line_pad * direction_vector[1]), )
+                    
+                    point2 = (int(modified_point_per_mask[0][0] + line_pad * direction_vector[0]),
+                            int(modified_point_per_mask[0][1] + line_pad * direction_vector[1]), )
                 
-                point2 = (int(point_per_mask[0][0] + line_pad * direction_vector[0]),
-                        int(point_per_mask[0][1] + line_pad * direction_vector[1]), )
-
+                # Calculate points for the line based on the direction vector and line padding
+                else:
+                    point1 = (int(point_per_mask[1][0] - line_pad * direction_vector[0]),
+                            int(point_per_mask[1][1] - line_pad * direction_vector[1]), )
+                    
+                    point2 = (int(point_per_mask[0][0] + line_pad * direction_vector[0]),
+                            int(point_per_mask[0][1] + line_pad * direction_vector[1]), )
+                
                 # Visualize the line connecting the two points
                 cv2.line(frame, point1, point2, color, 3)
 
                 # Append the points for the current mask to the list of points per frame
-                makerset_per_frame.append(point_per_mask)
+                markerset_per_frame.append(point_per_mask)
+                if modify:
+                    modified_markerset_per_frame.append(modified_point_per_mask)
 
                 # if len(filtered_regions)<2:
                 #     print("filtered_regions: ",filtered_regions)
@@ -182,23 +216,26 @@ class ModifiedMarkers(AngleTracker):
 
             # Calculate angles between consecutive lines
             # print(makerset_per_frame)
-            angle_0 = self.calculate_angle(makerset_per_frame[0], makerset_per_frame[1])
-            angle_1 = self.calculate_angle(makerset_per_frame[1], makerset_per_frame[2])
-            angle_2 = self.calculate_angle(makerset_per_frame[2], makerset_per_frame[3])
 
-            _text_pos_x = 100
+            # この辺の修正が必要
+            if modify:
+                angle_0 = self.calculate_angle(modified_markerset_per_frame[0], modified_markerset_per_frame[1])
+                angle_1 = self.calculate_angle(modified_markerset_per_frame[1], modified_markerset_per_frame[2])
+                angle_2 = self.calculate_angle(modified_markerset_per_frame[2], modified_markerset_per_frame[3])
+
+                _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
-            frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format((angle_0)), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
-            frame = self.add_text_to_frame(frame, "ANGLE 1: {}".format((angle_1)), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
-            frame = self.add_text_to_frame(frame, "ANGLE 2: {}".format((angle_2)), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+                frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format((angle_0)), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
+                frame = self.add_text_to_frame(frame, "ANGLE 1: {}".format((angle_1)), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
+                frame = self.add_text_to_frame(frame, "ANGLE 2: {}".format((angle_2)), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
             
-        # except Exception as err:
-        #     print(color_name,' Failed!:',err)
-        #     return frame,[],[],[]
+                # except Exception as err:
+                #     print(color_name,' Failed!:',err)
+                #     return frame,[],[],[]
 
 
-        return frame, angle_0, angle_1, angle_2
-        pass
+                return frame, angle_0, angle_1, angle_2
+            else: return frame
     def store_raw_data(self, measure, set_fps=30): # save time, each angles, frame id, 6 x raw marker position data to CSV file
         df_angle = pd.DataFrame(data=measure, columns=["frame","angle0", "angle1", "angle2", 
                                                     "marker pos0","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",])
@@ -264,6 +301,11 @@ if __name__ == '__main__':
     measure = [] # for storing angles
     frames_to_store = []
     cnt = frame_shift # for storing frame count
+
+    #parameters
+    theta = 0.52
+    distance = 20
+    tracker.set_params(theta, distance)
 
     # Videos capture cycles
     while True:
