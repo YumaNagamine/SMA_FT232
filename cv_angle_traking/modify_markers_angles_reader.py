@@ -53,8 +53,8 @@ class ModifiedMarkers(AngleTracker):
             return markers
         elif distance0 < distance1:
             markers[0], markers[1] = markers[1], markers[0]
-
             return markers
+        
     # def calculate_angle(self, line1, line2, index): #over ride
     #     pass
     @staticmethod
@@ -125,7 +125,7 @@ class ModifiedMarkers(AngleTracker):
                     # Append the centroid to the list of points for the mask
                     point_per_mask.append((centroid_x, centroid_y))
 
-                    #この辺にpoint_per_maskの順序を並べ替えるコードを書いたほうがいいかも？
+                    #この辺にpoint_per_maskの順序を並べ替えるコードを書いたほうがいいかも -> done
                     #マーカーの順序はpoint_per_mask=[遠位,近位]
                     if idx == 0:
                         point_per_mask = self.marker_discriminator_distalis(point_per_mask)
@@ -136,12 +136,11 @@ class ModifiedMarkers(AngleTracker):
                     elif idx == 3:
                         self.palm_marker_position = np.array([centroid_x, centroid_y])
 
-                        #self.palm_marker_positionとself.media_distalisをクリックで指定した位置とするコードの設定が必要
+                        #self.palm_marker_positionとself.media_distalisをクリックで指定した位置とするコードの設定が必要 -> done
 
                         
                     if modify:
-                        # このへんにマーカー位置を修正するコードを書く
-                        # point_per_maskがマーカーの点なのでidxかindexの値に応じて処理を分ける
+                        # このへんにマーカー位置を修正するコードを書く -> done
                         # 修正前のマーカーの位置と修正後のマーカーの位置両方を保存する
                         
                         if idx == 0: 
@@ -222,6 +221,7 @@ class ModifiedMarkers(AngleTracker):
                 angle_0 = self.calculate_angle(modified_markerset_per_frame[0], modified_markerset_per_frame[1])
                 angle_1 = self.calculate_angle(modified_markerset_per_frame[1], modified_markerset_per_frame[2])
                 angle_2 = self.calculate_angle(modified_markerset_per_frame[2], modified_markerset_per_frame[3])
+                
 
                 _text_pos_x = 100
             # Add text annotations to the frame with calculated angles
@@ -234,20 +234,27 @@ class ModifiedMarkers(AngleTracker):
                 #     return frame,[],[],[]
 
 
-                return frame, angle_0, angle_1, angle_2
-            else: return frame
+                return frame, angle_0, angle_1, angle_2, markerset_per_frame, modified_markerset_per_frame
+            
+            else: return frame, None, None, None, markerset_per_frame, None
+
+    def acquire_marker_color(self, frame, cv_choose_wd_name):
+        marker_rangers = super().acquire_marker_color(frame, cv_choose_wd_name)
+        self.media_distalis = self.marker_position_frame0[1]
+        self.palm_marker_position = self.marker_position_frame0[3]
+        return marker_rangers
     def store_raw_data(self, measure, set_fps=30): # save time, each angles, frame id, 6 x raw marker position data to CSV file
         df_angle = pd.DataFrame(data=measure, columns=["frame","angle0", "angle1", "angle2", 
                                                     "marker pos0","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",])
         df_angle["time"] = df_angle["frame"]/set_fps
         df_angle.to_csv(os.path.join(self.output_folder_path, f"{video_name.split('.')[0]}_extracted.csv"),index=False)
-        np_data = np.array(measure)[:, ::-1]
+        np_data = np.array(measure)[:, 0:4 ,::-1]
         print("measure:", type(measure))
         print(type(np_data), np_data)
         saveFigure(np_data, f"{video_name.split('.')[0]}_extracted.csv", ["angle_2","angle_1","angle_0","frame"], show_img=False, figure_mode='Single')
         
-    def store_video(self,):
-        pass
+    # def store_video(self,):
+    #     pass
 
 
 if __name__ == '__main__':
@@ -315,7 +322,7 @@ if __name__ == '__main__':
         
         if cnt==frame_shift: tracker.acquire_marker_color(frame)
  
-        frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
+        frame, angle_0, angle_1, angle_2, raw_marker_pos, modified_marker_pos  = tracker.extract_angle(frame,False, colors, modify=True)
         # # Use the original frame instead of creating a copy
         # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
         # except Exception as err: continue
@@ -328,7 +335,11 @@ if __name__ == '__main__':
         # Calculate and add time information
         end = time.time()
         frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
-        measure.append([cnt, angle_0,angle_1,angle_2])
+        measure.append([cnt, angle_0,angle_1,angle_2, 
+                        raw_marker_pos[0][0], raw_marker_pos[0][1], raw_marker_pos[1][0], raw_marker_pos[1][1],
+                        raw_marker_pos[2][0], raw_marker_pos[2][1], raw_marker_pos[3][0]])
+
+        print("for debug: appended measure=", measure[-1])
         
         frames_to_store.append(frame.copy())
         cnt += 1
@@ -353,5 +364,5 @@ if __name__ == '__main__':
     # Set the desired output video path
     
     tracker.store_video(frames_to_store,output_video_fps)
-    tracker.store_data(measure,output_video_fps)
+    tracker.store_raw_data(measure, output_video_fps)
     print(tracker.video_pos_file_url)
