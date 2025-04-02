@@ -22,7 +22,7 @@ class AngleTracker(object): # TODO
             os.makedirs(self.output_folder_path)
 
         self.color_mode = 0 # 0: Lab,1: Rgb
-        self.num_maker_sets = 4
+        self.num_marker_sets = 4
         self.denoising_mode = denoising_mode# 'monocolor'
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
 
@@ -55,8 +55,8 @@ class AngleTracker(object): # TODO
 
         #                 ]
         self._point_counter = 0
-        self.maker_position_frame0 = []
-        for _ in range(self.num_maker_sets):self.maker_position_frame0.append([0,0])
+        self.marker_position_frame0 = []
+        for _ in range(self.num_marker_sets):self.marker_position_frame0.append([0,0])
 
         self.enable_maker_pos_acquirement = False
         self.load_point_pos()
@@ -185,7 +185,7 @@ class AngleTracker(object): # TODO
         marker_rangers_old = self.marker_rangers
         marker_rangers = []
 
-        num_marker_sets = self.num_maker_sets
+        num_marker_sets = self.num_marker_sets
 
         cv2.namedWindow(cv_choose_wd_name, cv2.WINDOW_GUI_EXPANDED)
         cv2.setMouseCallback(cv_choose_wd_name, tracker.mouse_event)
@@ -200,11 +200,11 @@ class AngleTracker(object): # TODO
         else:
             _meassage = "Loaded exsist maker position:"
 
-            print(self.maker_position_frame0)
-            for [x,y] in self.maker_position_frame0:
+            print(self.marker_position_frame0)
+            for [x,y] in self.marker_position_frame0:
                 self._disp_marker_pos(x,y,frame)
                 # self.maker_position_frame0[self._point_counter] = [x,y]
-                self._point_counter = self._point_counter + 1 if self._point_counter < self.num_maker_sets-1 else 0
+                self._point_counter = self._point_counter + 1 if self._point_counter < self.num_marker_sets-1 else 0
 
             pass
         self._point_counter = 0
@@ -224,7 +224,7 @@ class AngleTracker(object): # TODO
                 self.store_point_pos()# TODO
                 time.sleep(0.6);break
 
-        for _i,_pos in enumerate(self.maker_position_frame0):
+        for _i,_pos in enumerate(self.marker_position_frame0):
             # Get color dara from lab img
 
             # Cal tolerance range
@@ -261,8 +261,8 @@ class AngleTracker(object): # TODO
         if event == cv2.EVENT_LBUTTONDOWN:
             if self.enable_maker_pos_acquirement:
                 self._disp_marker_pos(x, y,frame)
-                self.maker_position_frame0[self._point_counter] = [x,y]
-                self._point_counter = self._point_counter + 1 if self._point_counter < self.num_maker_sets-1 else 0
+                self.marker_position_frame0[self._point_counter] = [x,y]
+                self._point_counter = self._point_counter + 1 if self._point_counter < self.num_marker_sets-1 else 0
             # print(self.maker_position_frame0)
             else:
                 _meassage = "Please right click to start"
@@ -400,9 +400,9 @@ class AngleTracker(object): # TODO
             _pos_file = open(self.video_pos_file_url, 'r')
             _pos_data = json.load(_pos_file)
             print(type(_pos_data),_pos_data)
-            self.maker_position_frame0 = _pos_data['maker_position_frame0'] 
+            self.marker_position_frame0 = _pos_data['maker_position_frame0'] 
             if len(_pos_data) == 0: raise Exception("")        
-            else: print("\tSuccessfully load calibration data!:",self.maker_position_frame0,"\n")
+            else: print("\tSuccessfully load calibration data!:",self.marker_position_frame0,"\n")
 
         except Exception as Err: 
             print("\tErr occurs when loading maker_position_frame0, Please calibrate angle sensor: \n",Err)
@@ -411,7 +411,7 @@ class AngleTracker(object): # TODO
 
     def store_point_pos(self,):
         # save position of markers in video to json
-        _data = self.maker_position_frame0
+        _data = self.marker_position_frame0
         _data = {'maker_position_frame0':_data}
         info_json = json.dumps(_data,sort_keys=True, indent=4, separators=(',', ': '))
 
