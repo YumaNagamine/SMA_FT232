@@ -77,9 +77,9 @@ class AngleTracker(AsyncVideoSaver):
         self.video_pos_file_url = "C:/Users/SAWALAB/Desktop/projects/SMA_FT232/LOG/realtime/pos.json"
 
         if self.color_mode == 0: # Lab
-            self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)q
-            self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = [40,20,15,30]# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [13,50,20,20]#int(0.08 * 255)q
+            self.maker_tolerance_a = [10,45,17,17]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [10,20,15,30]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
@@ -96,7 +96,7 @@ class AngleTracker(AsyncVideoSaver):
         for _ in range(self.num_maker_sets):self.maker_position_frame0.append([0,0])
 
         self.enable_maker_pos_acquirement = False
-        self.load_point_pos()
+        # self.load_point_pos()
 
         pass
 
@@ -456,7 +456,7 @@ class AngleTracker(AsyncVideoSaver):
             _pos_file = open(self.video_pos_file_url, 'r')
             _pos_data = json.load(_pos_file)
             print(type(_pos_data),_pos_data)
-            self.maker_position_frame0 = _pos_data['maker_position_frame0'] 
+            self.maker_position_frame0 = _pos_data['marker_position_frame0'] 
             if len(_pos_data) == 0: raise Exception("")        
             else: print("\tSuccessfully load calibration data!:",self.maker_position_frame0,"\n")
 

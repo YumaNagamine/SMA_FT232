@@ -13,7 +13,8 @@ class AngleTracker(object): # TODO
             print("Empty video name, exiting...");exit()
         DATA_FOLDER = './' 
         self.video_name = video_name
-        self.video_path = DATA_FOLDER + video_name #"../IMG_7102.MOV"
+        self.video_path = DATA_FOLDER +'sc01/'+ video_name #"../IMG_7102.MOV"
+        print(self.video_path)
         self.output_folder_path = DATA_FOLDER + self.video_name.split('.')[0] +'/'# "../output/video"
         # output_folder_csv = output_folder_path #"../output/csv"
         self.video_pos_file_url = self.output_folder_path + self.video_name.split('.')[0] +'.json'
@@ -27,9 +28,9 @@ class AngleTracker(object): # TODO
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
 
         if self.color_mode ==0: # Lab
-            self.maker_tolerance_L = [75,50,20,20]#int(0.08 * 255)
-            self.maker_tolerance_a = [30,45,17,17]# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = [40,20,15,30]# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [13,50,20,20]#int(0.08 * 255)
+            self.maker_tolerance_a = [10,45,17,17]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [10,20,15,30]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
@@ -181,15 +182,15 @@ class AngleTracker(object): # TODO
                 
         return markers_masks
 
-    def acquire_marker_color(self,frame, cv_choose_wd_name): #TODO
+    def acquire_marker_color(self, frame, cv_choose_wd_name): #TODO
         marker_rangers_old = self.marker_rangers
         marker_rangers = []
+        self.frame = frame
 
         num_marker_sets = self.num_marker_sets
 
         cv2.namedWindow(cv_choose_wd_name, cv2.WINDOW_GUI_EXPANDED)
-        cv2.setMouseCallback(cv_choose_wd_name, tracker.mouse_event)
-
+        cv2.setMouseCallback(cv_choose_wd_name, self.mouse_event)
         if self.color_mode == 0:
             frame_to_segment = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
         else: frame_to_segment = frame
@@ -260,22 +261,22 @@ class AngleTracker(object): # TODO
 
         if event == cv2.EVENT_LBUTTONDOWN:
             if self.enable_maker_pos_acquirement:
-                self._disp_marker_pos(x, y,frame)
+                self._disp_marker_pos(x, y,self.frame)
                 self.marker_position_frame0[self._point_counter] = [x,y]
                 self._point_counter = self._point_counter + 1 if self._point_counter < self.num_marker_sets-1 else 0
             # print(self.maker_position_frame0)
             else:
                 _meassage = "Please right click to start"
-                cv2.putText(frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), thickness = 1)
+                cv2.putText(self.frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 1.0, (255, 255, 255), thickness = 1)
                 
         if event == cv2.EVENT_RBUTTONDOWN:
             _meassage = 'Please Choose target points by left click:'
-            cv2.putText(frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), thickness = 1)
+            cv2.putText(self.frame, _meassage, (50, 200), cv2.FONT_HERSHEY_PLAIN, 2, (255, 255, 255), thickness = 1)
             self.enable_maker_pos_acquirement = True
             pass
         
 
-        cv2.imshow("Choose", frame)
+        cv2.imshow("Choose", self.frame)
         return []
 
     def extract_angle(self, frame, swap, colors):
@@ -397,10 +398,11 @@ class AngleTracker(object): # TODO
     def load_point_pos(self,):
         try:
             # JSON到字典转化
+            import json
             _pos_file = open(self.video_pos_file_url, 'r')
             _pos_data = json.load(_pos_file)
             print(type(_pos_data),_pos_data)
-            self.marker_position_frame0 = _pos_data['maker_position_frame0'] 
+            self.marker_position_frame0 = _pos_data['marker_position_frame0'] 
             if len(_pos_data) == 0: raise Exception("")        
             else: print("\tSuccessfully load calibration data!:",self.marker_position_frame0,"\n")
 
@@ -485,6 +487,7 @@ if __name__ == '__main__':
     if not cv2.cuda.getCudaEnabledDeviceCount():
         print("Cuda accelaration is not supported, working on CPU")
         enable_gpu_acc = False
+    
 
     if not cap.isOpened():
         print("Error: Could not open the video file.")
@@ -507,7 +510,7 @@ if __name__ == '__main__':
         ret, frame = cap.read()
         if not ret: break
         
-        if cnt==frame_shift: tracker.acquire_marker_color(frame)
+        if cnt==frame_shift: tracker.acquire_marker_color(frame, cv_choose_wd_name)
  
         frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
         # # Use the original frame instead of creating a copy
