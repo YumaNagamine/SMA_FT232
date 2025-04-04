@@ -14,6 +14,7 @@ print(sys.version)
 os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 
 import time,cv2
+import datetime
 from PIL import Image, ImageTk 
 
 import tkinter as tk
@@ -28,6 +29,8 @@ from lib.GENERALFUNCTIONS import *
 from SMA_finger.SMA_finger_MP import *
 
 # from lib.GUI_Image_Editor.ViewGUI import ViewGUI
+class MyCustomError(Exception):
+    pass
 
 class exprimentGUI():
 
@@ -236,7 +239,7 @@ class exprimentGUI():
             return []
 
         except  Exception as err:
-            print('Video frame load from thread manager failed:\n ')
+            print('Video frame load from thread manager failed: ')
             print('Due to:',err)
             print('Tring again ... ...')
             self.root_window.after(1000,self.refresh_img)
@@ -340,6 +343,7 @@ class exprimentGUI():
         if dialog.result == 'Yes':
             try : self.butten_stop(retry=False)
             except Exception as err: print('Err during Exsisting: ',err)
+            self.process_share_dict['exit'] = True
             self.root_window.destroy(); sys.exit()
         else: return None
 
@@ -373,28 +377,47 @@ def process_camera(pid,process_share_dict={}):
     
     # Set the width and height 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width) 
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height) 
-
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     # Set encoder
     cap.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc('M','J','P','G')) # VIDEOWRITER_FOURCC VideoWriter_fourcc
+    # cap.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'mp4v')) # VIDEOWRITER_FOURCC VideoWriter_fourcc
+
+    timestamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    filename = f"output_{timestamp}.mp4"
+    # fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+    # filename = f"output_{timestamp}.avi"
+    fps = 120
+    out = cv2.VideoWriter(f"./LOG/main_actuation/{filename}", fourcc, fps, (width, height))
+
     # root = process_share_dict['root']
 
-    while cam_flag:
-        ret, frame = cap.read()
-        if ret:
-            # Convert the frame to PIL format
-            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            image = Image.fromarray(image)
+    try:
+        while cam_flag and not process_share_dict.get('exit', False):
+            ret, frame = cap.read()
+            if ret:
+                out.write(frame)
 
-            # # Resize the image to fit the label 
-            # image = image.resize((1280,int(1280*image.height/image.width))) #640, 360
-            # Update the label with the new image
-        
-            process_share_dict['photo'] = image
-            process_share_dict['photo_acquired_t'] = time.time()
+                # Convert the frame to PIL format
+                image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image = Image.fromarray(image)
+
+                # # Resize the image to fit the label 
+                # image = image.resize((1280,int(1280*image.height/image.width))) #640, 360
+                # Update the label with the new image
             
-        pass
-    pass
+                process_share_dict['photo'] = image
+                process_share_dict['photo_acquired_t'] = time.time()
+    finally:
+        cap.release()
+        out.release()
+        print("camera and videowriter resources have been released")                
+
+# def process_saver(pid, frames_to_store, process_share_dict={}):
+#     while True:
+#         if process_share_dict['photo_acquired_t'] != time.time():
+#             frames_to_store.append(process_share_dict['photo'])
 
 if __name__ == '__main__':
     # sys.stdout = Logger()
@@ -406,19 +429,21 @@ if __name__ == '__main__':
  
     # """ tk界面置顶 """
     # root.attributes("-topmost", 1)
+
     with multiprocessing.Manager() as process_manager:
         process_share_dict = process_manager.dict()
         process_share_dict['photo']=[]
+        process_share_dict['exit'] = False
 
         process_root = multiprocessing.Process(
-             target= process_GUI,name='GUI', args=(1,process_share_dict) )
+            target= process_GUI,name='GUI', args=(1,process_share_dict) )
         process_cam = multiprocessing.Process( 
             target= process_camera, name='CAM', args=(2,process_share_dict))
-        
+     
         process_cam.start()
         time.sleep(3)
         process_root.start()
+
         process_root.join()
-
-
+        process_cam.join()
      
