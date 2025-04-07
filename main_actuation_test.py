@@ -397,7 +397,7 @@ def process_camera(pid,process_share_dict={}):
     filename = f"output_{timestamp}.mp4"
     # fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
     # filename = f"output_{timestamp}.avi"
-    fps = 120
+    fps = 90
     out = cv2.VideoWriter(f"./LOG/main_actuation/{filename}", fourcc, fps, (width, height))
 
     # root = process_share_dict['root']
