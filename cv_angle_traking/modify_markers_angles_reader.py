@@ -1,6 +1,7 @@
 # This file is created by Nagamine on March 31.(copy of angles_reader)
 # to analize new-finger movement from exisxting video 
-import time,os
+# Do this on SMA FT232 directory
+import os
 os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 import cv2
 import numpy as np
@@ -36,10 +37,11 @@ class ModifiedMarkers(AngleTracker):
         return modified_markers
     
             
-    def marker_discriminator(self, markers): #中節骨と基節骨のマーカーを区別する　上と同様
-        markers = np.array(markers)
+    def marker_discriminator(self, markers): #中節骨と基節骨のマーカーを区別する　[遠位のマーカー　近位のマーカー]にする
+        # markers = np.array(markers)
         distance0 = self.calculate_distance(self.palm_marker_position, markers[0])
         distance1 = self.calculate_distance(self.palm_marker_position, markers[1])
+        # print('distances:', distance0, distance1)
         if distance0 > distance1:
             return markers
         elif distance0 < distance1:
@@ -131,14 +133,14 @@ class ModifiedMarkers(AngleTracker):
 
                         #この辺にpoint_per_maskの順序を並べ替えるコードを書いたほうがいいかも -> done
                         #マーカーの順序はpoint_per_mask=[遠位,近位]
+                          
                         if color_num == 0 and idx == 1:
                             point_per_mask = self.marker_discriminator_distalis(point_per_mask)
-
                         
                         elif (color_num == 1 and idx == 1) or (color_num == 2 and idx == 1):
                             point_per_mask = self.marker_discriminator(point_per_mask)
                             self.media_distalis = point_per_mask[0]
-                            point_per_mask = point_per_mask.tolist()
+                            # point_per_mask = point_per_mask.tolist()
                         elif color_num == 3 and idx == 0:
                             self.palm_marker_position = np.array([centroid_x, centroid_y])
                             #self.palm_marker_positionとself.media_distalisをクリックで指定した位置とするコードの設定が必要 -> done
@@ -176,12 +178,13 @@ class ModifiedMarkers(AngleTracker):
                             cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
                         for idx, point in enumerate(modified_point_per_mask):
                             cv2.circle(frame, (point[0], point[1]), radius=idx*10 + 5, color=color, thickness=2)
-                    else: # visualize circles on raw marker positions
+                     # visualize circles on raw marker positions
+                        
                         for idx, point in enumerate(point_per_mask):
-                            cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
+                            cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=[255,255,255], thickness=2)
                         # Visualize circles for each point with increased radius
                         for idx, point in enumerate(point_per_mask):
-                            cv2.circle(frame, (point[0], point[1]), radius=idx * 10 + 5, color=color, thickness=3)
+                            cv2.circle(frame, (point[0], point[1]), radius=idx * 10 + 5, color=[255,255,255], thickness=3)
 
                     if len(point_per_mask) <2 and (not color_num == 3):
                         continue
@@ -328,22 +331,22 @@ if __name__ == '__main__':
 
     # Constants
     ## For styling
-    colors = [(255,0,0), (127,0,255), (0,127,0), (0,127,255)]
+    colors = [(43,74,134), (0,0,255), (255,0,0), (0,255,255)]
     line_padding = [0.7, 1.5,1.5,1.5]
 
     font_scale = 1
     text_position_cnt = (100, 100)
     text_position_time = (100, 120)
     
-    video_name = "output_20250407_174902.mp4"
-    frame_jump = 5
+    video_name = "output_to_analyze.mp4"
+    frame_jump = 0
 
     ## For algorithm tuning
     # Are for optime
     kernel = np.ones((5,5),np.uint8)
-    threshold_area_size = [20, 70, 20, 10]# [80, 20, 10, 40]
+    threshold_area_size = [40, 70, 20, 10]# [80, 20, 10, 40]
     frame_shift = 0
-    output_video_fps = 90 # I dont know if its work
+    output_video_fps = 90 
 
     tracker = ModifiedMarkers(video_name,denoising_mode = 'monocolor')
     # Main logic
@@ -371,7 +374,7 @@ if __name__ == '__main__':
     cnt = frame_shift # for storing frame count
 
     #parameters
-    theta = 0.60
+    theta = 0.55
     distance = -30
     tracker.set_params(theta, distance)
 
@@ -381,7 +384,7 @@ if __name__ == '__main__':
             strt = time.time()
             ret, frame = cap.read()
             if not ret: break
-            frame = tracker.frame_trimer(frame, 1300, 1200)
+            # frame = tracker.frame_trimer(frame, 1300, 1200)
             
             if cnt==frame_shift: tracker.acquire_marker_color(frame, cv_choose_wd_name)
             frame, angle_0, angle_1, angle_2, raw_marker_pos, modified_marker_pos  = tracker.extract_angle(frame,False, colors, modify=True)
@@ -397,6 +400,7 @@ if __name__ == '__main__':
             # Calculate and add time information
             end = time.time()
             frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
+            print(raw_marker_pos)
             measure.append([cnt, angle_0,angle_1,angle_2, 
                             tuple(raw_marker_pos[0][0]), tuple(raw_marker_pos[0][1]), tuple(raw_marker_pos[1][0]), tuple(raw_marker_pos[1][1]),
                             tuple(raw_marker_pos[2][0]), tuple(raw_marker_pos[2][1]), tuple(raw_marker_pos[3][0])])
