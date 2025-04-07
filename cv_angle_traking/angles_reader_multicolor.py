@@ -11,9 +11,9 @@ class AngleTracker(object): # TODO
         # colors_name = ["blue", "pink", "green", "yellow"]
         if video_name==[]:
             print("Empty video name, exiting...");exit()
-        DATA_FOLDER = './' 
+        DATA_FOLDER = './sc01/' 
         self.video_name = video_name
-        self.video_path = DATA_FOLDER +'sc01/'+ video_name #"../IMG_7102.MOV"
+        self.video_path = DATA_FOLDER + video_name #"../IMG_7102.MOV"
         print(self.video_path)
         self.output_folder_path = DATA_FOLDER + self.video_name.split('.')[0] +'/'# "../output/video"
         # output_folder_csv = output_folder_path #"../output/csv"
@@ -28,9 +28,9 @@ class AngleTracker(object): # TODO
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
 
         if self.color_mode ==0: # Lab
-            self.maker_tolerance_L = [13,50,20,20]#int(0.08 * 255)
-            self.maker_tolerance_a = [10,45,17,17]# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = [10,20,15,30]# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [60,80,120,20]#int(0.08 * 255)
+            self.maker_tolerance_a = [10,50,17,17]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [10,30,15,30]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green
@@ -245,7 +245,6 @@ class AngleTracker(object): # TODO
         self.marker_rangers = marker_rangers
         
         cv2.destroyWindow("Choose")
-
         return marker_rangers 
     
 
@@ -263,6 +262,7 @@ class AngleTracker(object): # TODO
             if self.enable_maker_pos_acquirement:
                 self._disp_marker_pos(x, y,self.frame)
                 self.marker_position_frame0[self._point_counter] = [x,y]
+                print([x,y])
                 self._point_counter = self._point_counter + 1 if self._point_counter < self.num_marker_sets-1 else 0
             # print(self.maker_position_frame0)
             else:
@@ -413,9 +413,11 @@ class AngleTracker(object): # TODO
 
     def store_point_pos(self,):
         # save position of markers in video to json
+        import json
         _data = self.marker_position_frame0
         _data = {'maker_position_frame0':_data}
         info_json = json.dumps(_data,sort_keys=True, indent=4, separators=(',', ': '))
+        print('saved to:', self.video_pos_file_url)
 
         f = open(self.video_pos_file_url, 'w')
         f.write(info_json)
@@ -427,20 +429,20 @@ class AngleTracker(object): # TODO
         df_angle = pd.DataFrame(data=measure, columns=["frame", "angle_0", "angle_1", "angle_2"])
         df_angle["time"] = df_angle["frame"] / set_fps
 
-        df_angle.to_csv(os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted.csv"), 
+        df_angle.to_csv(os.path.join(self.output_folder_path,f"{self.video_name.split('.')[0]}_extracted.csv"), 
                         index=False)
 
         np_data = np.array(measure)[:,::-1]
         print("measure:",type(measure))
         print(type(np_data),np_data)
-        saveFigure(np_data,f"{video_name.split('.')[0]}_extracted.csv",["angle_2", "angle_1", "angle_0","frame"],
+        saveFigure(np_data,f"{self.video_name.split('.')[0]}_extracted.csv",["angle_2", "angle_1", "angle_0","frame"],
                    show_img=False, figure_mode='Single' )
         # saveData()
 
         pass
 
     def store_video(self,frames, fps):
-        self.output_video_url = os.path.join(self.output_folder_path,f"{video_name.split('.')[0]}_extracted.mp4") 
+        self.output_video_url = os.path.join(self.output_folder_path,f"{self.video_name.split('.')[0]}_extracted.mp4") 
         # Function to store the video with updated frames
         fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
         # fourcc = cv2.VideoWriter_fourcc(*'x264')# # 'avc1' # Mac

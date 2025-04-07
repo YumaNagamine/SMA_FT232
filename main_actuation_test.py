@@ -368,9 +368,10 @@ def process_camera(pid,process_share_dict={}):
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW) # Important!
     cam_flag = cap.isOpened()
     print('Camera State:',cap.isOpened(),cap.get(3),cap.get(4))
-    
+    target_fps = 90
     # Declare the width and height in variables 
-    width, height = 1280, 720 # 1920,1080# 
+    # width, height = 1280, 720 # 1920,1080# 
+    width, height = 1600, 1200 
     
     # Set FPS
     # cap.set(cv2.CAP_PROP_FPS,120)
@@ -378,11 +379,19 @@ def process_camera(pid,process_share_dict={}):
     # Set the width and height 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width) 
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    cap.set(cv2.CAP_PROP_FPS,target_fps)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)  # 设置缓冲区大小为2
+    cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # 0.25表示手动模式，0.75表示自动模式
+    cap.set(cv2.CAP_PROP_GAIN, 0)  # 调整增益值，具体范围取决于摄像头
+    cap.set(cv2.CAP_PROP_EXPOSURE, -11)  # 设置曝光值，负值通常表示较短的曝光时间
+
     # Set encoder
     cap.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc('M','J','P','G')) # VIDEOWRITER_FOURCC VideoWriter_fourcc
     # cap.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'mp4v')) # VIDEOWRITER_FOURCC VideoWriter_fourcc
 
-    timestamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+    timestamp=datetime.datetime.now().strftime("%Y%m%d_%H%M%S") # NAGA
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     filename = f"output_{timestamp}.mp4"
