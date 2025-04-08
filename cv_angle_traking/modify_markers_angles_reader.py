@@ -97,7 +97,7 @@ class ModifiedMarkers(AngleTracker):
         
         if 1:
             # Iterate over each color marker
-            for mask, thr, color, color_name, direction_vector, color_num in zip(masks, threshold_area_size, colors, colors_name, [direction_vector_0_1, None, None, None],[0,1,2,3]):
+            for mask, thr, color, color_name, direction_vector, color_num in zip(masks, threshold_area_size, colors, colors_name, [direction_vector_0_1, None, None, None],(0,1,2,3)):
                 # Convert the mask to uint8
                 try:
                     mask = np.uint8(mask) # True/False -> 0/1
@@ -118,6 +118,9 @@ class ModifiedMarkers(AngleTracker):
                     if len(filtered_regions)<2 and (not color_num == 3): 
                         point_per_mask.extend([(-1,-1),(-1,-1)]) 
                         markerset_per_frame.append(point_per_mask)
+                        if modify:
+                            modified_point_per_mask.extend([(-1,-1),(-1,-1)])
+                            modified_markerset_per_frame.append(modified_point_per_mask)
                         continue
 
                     # Iterate over filtered regions in the mask
@@ -148,7 +151,7 @@ class ModifiedMarkers(AngleTracker):
                     if modify:
                         # このへんにマーカー位置を修正するコードを書く -> done
                         # 修正前のマーカーの位置と修正後のマーカーの位置両方を保存する
-                        if color_num  == 0: 
+                        if color_num  == 0:
                             modified_distal = point_per_mask[0]
                             modified_proximal = point_per_mask[1]
                             modified_point_per_mask.append(tuple(modified_distal))
@@ -180,11 +183,11 @@ class ModifiedMarkers(AngleTracker):
                             cv2.circle(frame, (point[0], point[1]), radius=idx*10 + 5, color=color, thickness=2)
                      # visualize circles on raw marker positions
                         
-                        for idx, point in enumerate(point_per_mask):
-                            cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=[255,255,255], thickness=2)
-                        # Visualize circles for each point with increased radius
-                        for idx, point in enumerate(point_per_mask):
-                            cv2.circle(frame, (point[0], point[1]), radius=idx * 10 + 5, color=[255,255,255], thickness=3)
+                        # for idx, point in enumerate(point_per_mask):
+                        #     cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=[255,255,255], thickness=2)
+                        # # Visualize circles for each point with increased radius
+                        # for idx, point in enumerate(point_per_mask):
+                        #     cv2.circle(frame, (point[0], point[1]), radius=idx * 10 + 5, color=[255,255,255], thickness=3)
 
                     if len(point_per_mask) <2 and (not color_num == 3):
                         continue
@@ -228,6 +231,7 @@ class ModifiedMarkers(AngleTracker):
                         modified_markerset_per_frame.append(modified_point_per_mask)
 
 
+
                     # if len(filtered_regions)<2:
                     #     print("filtered_regions: ",filtered_regions)
                     #     print("num_labels: ",num_labels)
@@ -247,7 +251,11 @@ class ModifiedMarkers(AngleTracker):
             # この辺の修正が必要
             if modify:
                 # print('raw marker positions', markerset_per_frame)
-                # print('modified marker positions', modified_markerset_per_frame)
+
+
+                self.estimate_joint(modified_markerset_per_frame)
+                cv2.circle(frame, center=self.DIP, radius=10, color=[0,255,0], thickness=10)
+                cv2.circle(frame, center=self.PIP, radius=10, color=[0,255,0], thickness=10)
                 try:
                     angle_0 = self.calculate_angle(modified_markerset_per_frame[0], modified_markerset_per_frame[1])[2]
                     angle_0 = int(10*angle_0)/10
@@ -300,6 +308,21 @@ class ModifiedMarkers(AngleTracker):
                 return angle_degree, angle_rad, joint_angle
             except:
                 return [],[],[]
+            
+    def estimate_joint(self, modified_markerset_per_frame, shifters=[15,110]):
+        print('modified in estimate joint', modified_markerset_per_frame)
+        modified_markerset_per_frame_vec = np.array(modified_markerset_per_frame)
+        direction_vector_0 = modified_markerset_per_frame_vec[1][0] - modified_markerset_per_frame_vec[1][1] #近位から遠位へのベクトル
+        direction_vector_1 = modified_markerset_per_frame_vec[2][0] - modified_markerset_per_frame_vec[2][1]
+
+        self.DIP = modified_markerset_per_frame_vec[1][0] + (shifters[0]/np.linalg.norm(direction_vector_0))*direction_vector_0
+        self.PIP = modified_markerset_per_frame_vec[2][0] + (shifters[1]/np.linalg.norm(direction_vector_1))*direction_vector_1
+        self.DIP = self.DIP.astype(np.int32)
+        self.PIP = self.PIP.astype(np.int32)
+
+        return self.DIP, self.PIP
+
+
 
     def acquire_marker_color(self, frame, cv_choose_wd_name):
         marker_rangers = super().acquire_marker_color(frame, cv_choose_wd_name)
@@ -309,8 +332,13 @@ class ModifiedMarkers(AngleTracker):
     
     
     def store_raw_data(self, measure, set_fps=30): # save time, each angles, frame id, 6 x raw marker position data to CSV file
+        # df_angle = pd.DataFrame(data=measure, columns=["frame","angle0", "angle1", "angle2", 
+        #                                             "marker pos0_x","marker pos0_y","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",
+        #                                             "DIP_x", "DIP_y", "PIP_x", "PIP_y", "MCP_x", "MCP_y"])
         df_angle = pd.DataFrame(data=measure, columns=["frame","angle0", "angle1", "angle2", 
-                                                    "marker pos0","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",])
+                                                    "marker pos0","marker pos1","marker pos2","marker pos3","marker pos4","marker pos5","marker pos6",
+                                                    "modified marker pos0","modified marker pos1","modified marker pos2","modified marker pos3","modified marker pos4","modified marker pos5","modified marker pos6",
+                                                    "DIP","PIP"])
         df_angle["time"] = df_angle["frame"]/set_fps
         df_angle.to_csv(os.path.join(self.output_folder_path, f"{self.video_name.split('.')[0]}_extracted.csv"),index=False)
         np_data = np.array(measure)[:, 0:4 ,::-1]
@@ -338,13 +366,13 @@ if __name__ == '__main__':
     text_position_cnt = (100, 100)
     text_position_time = (100, 120)
     
-    video_name = "output_to_analyze.mp4"
+    video_name = "AR0234_0409-075422.mp4"
     frame_jump = 0
 
     ## For algorithm tuning
     # Are for optime
     kernel = np.ones((5,5),np.uint8)
-    threshold_area_size = [40, 70, 20, 10]# [80, 20, 10, 40]
+    threshold_area_size = [200, 50, 50, 10]# [80, 20, 10, 40]
     frame_shift = 0
     output_video_fps = 90 
 
@@ -400,15 +428,27 @@ if __name__ == '__main__':
             # Calculate and add time information
             end = time.time()
             frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
-            print(raw_marker_pos)
-            measure.append([cnt, angle_0,angle_1,angle_2, 
-                            tuple(raw_marker_pos[0][0]), tuple(raw_marker_pos[0][1]), tuple(raw_marker_pos[1][0]), tuple(raw_marker_pos[1][1]),
-                            tuple(raw_marker_pos[2][0]), tuple(raw_marker_pos[2][1]), tuple(raw_marker_pos[3][0])])
-
-            # print("for debug:\nappended measure=", measure[-1])
+            try:
+                print('a,', raw_marker_pos)
+                print('b', modified_marker_pos)
+                measure.append([cnt, angle_0,angle_1,angle_2, 
+                                # tuple(raw_marker_pos[0][0][0]), tuple(raw_marker_pos[0][0][1]), # fingertip
+                                tuple(raw_marker_pos[0][0]),
+                                tuple(raw_marker_pos[0][1]), tuple(raw_marker_pos[1][0]), tuple(raw_marker_pos[1][1]),
+                                tuple(raw_marker_pos[2][0]), tuple(raw_marker_pos[2][1]), tuple(raw_marker_pos[3][0]),
+                                tuple(modified_marker_pos[0][0]),
+                                tuple(modified_marker_pos[0][1]),tuple(modified_marker_pos[1][0]),tuple(modified_marker_pos[1][1]),
+                                tuple(modified_marker_pos[2][0]),tuple(modified_marker_pos[2][1]),tuple(modified_marker_pos[3][0]),
+                                tuple(tracker.DIP), tuple(tracker.PIP)])
+            except:
+                cv2.imshow('Video Preview', frame)
+                continue
+                # print("for debug:\nappended measure=", measure[-1])
             
             frames_to_store.append(frame.copy())
             cnt += 1
+            if cnt % 20 == 0: print(cnt)
+
 
             if frame_jump == 0:
                 pass
