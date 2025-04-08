@@ -51,7 +51,7 @@ def extract_video_segment(video_path, start_frame, end_frame):
 
 # 例: "sample.mp4" の 100 フレームから動画最後までを切り出す場合
 if __name__ == "__main__":
-    video_file = "./sc01/output_20250407_174902.mp4"  # 動画のパスを指定
-    start = 100  # 切り出し開始フレーム番号
-    end = 2000      # 0の場合、動画の最後まで切り出す
+    video_file = "./sc01/FDP_LM.mp4"  # 動画のパスを指定
+    start = 500  # 切り出し開始フレーム番号
+    end = 0      # 0の場合、動画の最後まで切り出す
     extract_video_segment(video_file, start, end)
