@@ -366,7 +366,7 @@ if __name__ == '__main__':
     text_position_cnt = (100, 100)
     text_position_time = (100, 120)
     
-    video_name = "AR0234_0409-075422.mp4"
+    video_name = "AR0234_0409-080335.mp4"
     frame_jump = 0
 
     ## For algorithm tuning
