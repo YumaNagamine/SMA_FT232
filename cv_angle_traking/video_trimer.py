@@ -8,6 +8,7 @@ def extract_video_segment(video_path, start_frame, end_frame):
     if not cap.isOpened():
         print("動画を開けませんでした:", video_path)
         return
+    print("test")
 
     # 動画の基本情報取得
     fps = cap.get(cv2.CAP_PROP_FPS)
