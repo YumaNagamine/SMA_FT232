@@ -149,38 +149,38 @@ if __name__ == "__main__":
     
     # 初始化时间戳队列
     frame_times = deque(maxlen=30)  # 保持最近30帧的时间戳
-  
-    # Video Loop
-    while True:
-        cur_time = time.perf_counter()
-        ret, frame_raw = cap.read()
+    try:
+        # Video Loop
+        while True:
+            cur_time = time.perf_counter()
+            ret, frame_raw = cap.read()
 
-        if ret:
-            if is_recod_video: saver.add_frame(frame_raw)
-            # Convert the frame to PIL format
-            # frame = cv2.cvtColor(frame_BGR, cv2.COLOR_BGR2RGB)
-            # frame = Image.fromarray(frame)
+            if ret:
+                if is_recod_video: saver.add_frame(frame_raw)
+                # Convert the frame to PIL format
+                # frame = cv2.cvtColor(frame_BGR, cv2.COLOR_BGR2RGB)
+                # frame = Image.fromarray(frame)
 
-            # Resize the image to fit the label
-            # frame = frame.resize((640, 360)) #640, 360 1280,720
-            pass
-        else: continue
-        frame_id += 1
-        frame_times.append(cur_time)
+                # Resize the image to fit the label
+                # frame = frame.resize((640, 360)) #640, 360 1280,720
+                pass
+            else: continue
+            frame_id += 1
+            frame_times.append(cur_time)
 
-        if True: #frame_id % int(actual_fps // 20) == 0:  # 每示两次
- 
-            if frame_id>30: cur_fps = len(frame_times) / (frame_times[-1] - frame_times[0])
-            else : cur_fps = -1
+            if True: #frame_id % int(actual_fps // 20) == 0:  # 每示两次
+    
+                if frame_id>30: cur_fps = len(frame_times) / (frame_times[-1] - frame_times[0])
+                else : cur_fps = -1
 
-            cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{frame_times[-1] }', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-            cv2.imshow('frame', frame_raw)  # 显示图像
-            
+                cv2.putText(frame_raw, f'Time: {time.strftime("%Y%m%d-%H%M%S")},{frame_times[-1] }', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(frame_raw, f'Current Frame {frame_id}; FPS: {int(cur_fps)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                cv2.imshow('frame', frame_raw)  # 显示图像
+                
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
-                break
- 
-    cap.release()
-    cv2.destroyAllWindows()
-    if is_recod_video: saver.finalize()
+            if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
+                    break
+    finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        if is_recod_video: saver.finalize()

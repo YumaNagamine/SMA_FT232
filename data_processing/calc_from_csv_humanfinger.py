@@ -20,7 +20,7 @@ def filter_consecutive_anomalies(df, cols, threshold):
     return df[keep].copy()
 
 # --- 設定 ---
-core_name   = "FDP_LM_trimed"
+core_name   = "slowmo_test"
 folder_path = os.path.join('.', 'sc01', core_name)
 filename    = core_name + "_extracted.csv"
 input_path  = os.path.join(folder_path, filename)
@@ -28,14 +28,14 @@ input_path  = os.path.join(folder_path, filename)
 # --- CSV読み込み ---
 df = pd.read_csv(input_path)
 
-# --- marker pos0 の前処理 ---
-if 'marker pos0_x' not in df.columns or 'marker pos0_y' not in df.columns:
-    if 'marker pos0' in df.columns:
-        coords = df['marker pos0'].str.strip('()').str.split(',', expand=True)
-        df['marker pos0_x'] = pd.to_numeric(coords[0], errors='coerce')
-        df['marker pos0_y'] = pd.to_numeric(coords[1], errors='coerce')
+# --- fingertip の前処理 ---
+if 'fingertip_x' not in df.columns or 'fingertip_y' not in df.columns:
+    if 'fingertip' in df.columns:
+        coords = df['fingertip'].str.strip('()').str.split(',', expand=True)
+        df['fingertip_x'] = pd.to_numeric(coords[0], errors='coerce')
+        df['fingertip_y'] = pd.to_numeric(coords[1], errors='coerce')
     else:
-        raise KeyError("CSVに 'marker pos0_x','marker pos0_y' または 'marker pos0' カラムがありません。")
+        raise KeyError("CSVに 'fingertip_x','fingertip_y' または 'fingertip' カラムがありません。")
 
 # --- DIP, PIP の前処理 ---
 for col in ['DIP', 'PIP']:
@@ -52,7 +52,7 @@ for col in ['DIP', 'PIP']:
 # --- 初期エラー値の除去 ---
 df_clean = df[
     (df['angle0'] != "[]") &
-    ~((df['marker pos0_x'] == -1) & (df['marker pos0_y'] == -1))
+    ~((df['fingertip_x'] == -1) & (df['fingertip_y'] == -1))
 ].copy()
 
 # --- 角度データの数値変換 ---
@@ -65,13 +65,13 @@ angle_threshold = 30   # 30°以上のジャンプを外れ値とみなす（調
 df_clean = filter_consecutive_anomalies(df_clean, angle_cols, angle_threshold)
 
 # --- 座標の外れ値除去（連続的な測定エラー） ---
-position_cols = ['marker pos0_x', 'marker pos0_y']
+position_cols = ['fingertip_x', 'fingertip_y']
 threshold     = 100  # ピクセル単位の閾値（調整可）
 df_clean = filter_consecutive_anomalies(df_clean, position_cols, threshold)
 
 # --- 座標の範囲チェック (0 ≤ x ≤ 1600, 0 ≤ y ≤ 1200) ---
 for col_x, col_y in [
-    ('marker pos0_x','marker pos0_y'),
+    ('fingertip_x','fingertip_y'),
     ('DIP_x','DIP_y'),
     ('PIP_x','PIP_y')
 ]:
@@ -89,9 +89,9 @@ for angle in ['angle0', 'angle1', 'angle2']:
     df_clean[f'd{angle}_dt']   = dangle_dt
     df_clean[f'd2{angle}_dt2'] = d2angle_dt2
 
-# --- marker pos0 の速度計算 ---
-x     = df_clean['marker pos0_x'].values
-y     = df_clean['marker pos0_y'].values
+# --- fingertip の速度計算 ---
+x     = df_clean['fingertip_x'].values
+y     = df_clean['fingertip_y'].values
 dx_dt = np.gradient(x, time)
 dy_dt = np.gradient(y, time)
 df_clean['speed'] = np.sqrt(dx_dt**2 + dy_dt**2)
