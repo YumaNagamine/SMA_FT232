@@ -1,6 +1,6 @@
 data:
-  video_name: ["FDP", "FDS","LM","Extensor"] 
-  batch_size: 256
+  video_name: ["FDP", "FDS","LM","Extensor"]
+  batch_size: 16
   num_workers: 4
 
 model:
