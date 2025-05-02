@@ -1,0 +1,18 @@
+data:
+  video_name: ["FDP", "FDS","LM","Extensor"]    # 動画フォルダ名
+  batch_size: 16
+  num_workers: 4
+
+model:
+  input_ch: 3
+  hidden_dim: 256
+  output_dim: 8
+
+train:
+  device: "cuda"       # "cpu" も可
+  lr: 1e-4
+  weight_decay: 0.0001
+  epochs: 30
+
+eval:
+  checkpoint: "checkpoints/epoch_30.pt"

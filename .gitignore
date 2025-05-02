@@ -4,3 +4,4 @@ LOG/
 sc01/
 .pyc
 __pycache__
+.pt

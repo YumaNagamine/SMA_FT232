@@ -4,13 +4,14 @@ import cv2
 import numpy as np
 
 class VideoMaskProcessor:
-    def __init__(self, threshold: int, area_threshold: int):
+    def __init__(self, threshold: int, area_threshold_black: int, area_threshold_white: int):
         """
         :param threshold: グレースケール値の閾値 a (0–255)
         :param area_threshold: 黒領域の面積閾値 b (ピクセル数)
         """
         self.threshold = threshold
-        self.area_threshold = area_threshold
+        self.area_threshold_black = area_threshold_black
+        self.area_threshold_white = area_threshold_white
 
     def binarize_frame(self, frame: np.ndarray) -> np.ndarray:
         """
@@ -36,10 +37,27 @@ class VideoMaskProcessor:
         # stats[:, cv2.CC_STAT_AREA] に各ラベルの面積が入っている
         for label in range(1, num_labels):
             area = stats[label, cv2.CC_STAT_AREA]
-            if area <= self.area_threshold:
+            if area <= self.area_threshold_black:
                 # 元の binary 上で、そのラベルの位置を1にセット
                 binary[labels == label] = 1
         return binary
+    
+    def filter_small_white_regions(self, binary: np.ndarray) -> np.ndarray:
+        """
+        1.2 白(1)の連結領域を抽出し、面積<=area_threshold の領域を反転(0に)する。
+        :param binary: 二値画像 (0 or 1)
+        :return: 小領域が反転された二値画像
+        """
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+            binary.astype(np.uint8), connectivity=8
+        )
+        for label in range(1, num_labels):
+            area = stats[label, cv2.CC_STAT_AREA]
+            if area <= self.area_threshold_white:
+                binary[labels==label] = 0
+            
+        return binary
+
 
     def save_mask_video(self, input_path: str, output_path: str = None):
         """
@@ -70,8 +88,10 @@ class VideoMaskProcessor:
                 break
             # 二値化
             bin_f = self.binarize_frame(frame)
-            # 小領域反転
+            # 小領域反転(黒穴→白)
             filt = self.filter_small_black_regions(bin_f)
+            # 小領域反転(白穴→黒)
+            filt = self.filter_small_white_regions(filt)
             # 0/1 → 0/255 に変換
             mask8 = (filt * 255).astype(np.uint8)
             out.write(mask8)
@@ -84,43 +104,45 @@ class VideoMaskProcessor:
 if __name__ == '__main__':
     import time
     import multiprocessing
-
-    video_name = "./sc01/LM.mp4"
     start = time.time()
-    processor = VideoMaskProcessor(threshold=115, area_threshold=5000)
-    processor.save_mask_video(video_name)
+    # video_name = "./sc01/LM.mp4"
+    # start = time.time()
+    # processor = VideoMaskProcessor(threshold=115, area_threshold_black=5000)
+    # processor.save_mask_video(video_name)
 
-    # video_name1 = "./sc01/LM.mp4"
-    # video_name2 = "./sc01/FDP.mp4"
-    # video_name3 = "./sc01/FDS.mp4"
-    # video_name4 = "./sc01/Extensor.mp4"
+    video_name1 = "./sc01/LM.mp4"
+    video_name2 = "./sc01/FDP.mp4"
+    video_name3 = "./sc01/FDS.mp4"
+    video_name4 = "./sc01/Extensor.mp4"
 
-    # processor1 = VideoMaskProcessor(threshold=115, area_threshold=5000)
-    # processor2 = VideoMaskProcessor(threshold=115, area_threshold=5000)
-    # processor3 = VideoMaskProcessor(threshold=115, area_threshold=5000)
-    # processor4 = VideoMaskProcessor(threshold=115, area_threshold=5000)
+    processor1 = VideoMaskProcessor(threshold=115, area_threshold_black=5000, area_threshold_white=1000)
+    processor2 = VideoMaskProcessor(threshold=115, area_threshold_black=5000,area_threshold_white=1000)
+    processor3 = VideoMaskProcessor(threshold=115, area_threshold_black=5000,area_threshold_white=1000)
+    processor4 = VideoMaskProcessor(threshold=115, area_threshold_black=5000,area_threshold_white=1000)
 
-    # with multiprocessing.Manager() as process_manager:
-    #     process_1 = multiprocessing.Process(
-    #         target=processor1.save_mask_video, args=(video_name1,)
-    #     )
-    #     process_2 = multiprocessing.Process(
-    #         target=processor2.save_mask_video, args=(video_name2,)
-    #     )
-    #     process_3 = multiprocessing.Process(
-    #         target=processor3.save_mask_video, args=(video_name3,)
-    #     )
-    #     process_4 = multiprocessing.Process(
-    #         target=processor4.save_mask_video, args=(video_name4,)
-    #     )
-    #     process_1.start()
-    #     process_2.start()
-    #     process_3.start()
-    #     process_4.start()
+    with multiprocessing.Manager() as process_manager:
+        process_1 = multiprocessing.Process(
+            target=processor1.save_mask_video, args=(video_name1,)
+        )
+        process_2 = multiprocessing.Process(
+            target=processor2.save_mask_video, args=(video_name2,)
+        )
+        process_3 = multiprocessing.Process(
+            target=processor3.save_mask_video, args=(video_name3,)
+        )
+        process_4 = multiprocessing.Process(
+            target=processor4.save_mask_video, args=(video_name4,)
+        )
+        process_1.start()
+        process_2.start()
+        process_3.start()
+        process_4.start()
 
-    #     process_1.join()
-    #     process_2.join()
-    #     process_3.join()
-    #     process_4.join()
-
-    print('processing time,', time.time()-start)
+        process_1.join()
+        process_2.join()
+        process_3.join()
+        process_4.join()
+    
+    seconds = time.time()-start
+    minutes = (time.time()-start)/60
+    print('processing time: ', minutes, ' min')
