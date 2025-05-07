@@ -26,6 +26,12 @@ def predict(image_path: str, checkpoint: str):
         out = model(tensor)
     return out.squeeze(0).cpu().numpy()
 
+def predict_frame(frame, checkpoint: str, model, device):
+    tensor = ToTensor()(frame).unsqueeze(0).to(device)
+
+    with torch.no_grad():
+        out = model(tensor)
+    return out.squeeze(0).cpu().numpy()
 
 if __name__ == '__main__':
     import sys
