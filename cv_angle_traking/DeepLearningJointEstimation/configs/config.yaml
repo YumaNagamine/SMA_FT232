@@ -15,4 +15,4 @@ train:
   epochs: 20
 
 eval:
-  checkpoint: "checkpoints/epoch_30.pt"
+  checkpoint: "checkpoints/epoch_20.pt"
