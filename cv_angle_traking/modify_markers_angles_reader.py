@@ -248,11 +248,8 @@ class ModifiedMarkers(AngleTracker):
                 # print(makerset_per_frame)
 
 
-            # この辺の修正が必要
             if modify:
                 # print('raw marker positions', markerset_per_frame)
-
-
                 self.estimate_joint(modified_markerset_per_frame)
                 cv2.circle(frame, center=self.DIP, radius=10, color=[0,255,0], thickness=10)
                 cv2.circle(frame, center=self.PIP, radius=10, color=[0,255,0], thickness=10)
@@ -366,7 +363,7 @@ if __name__ == '__main__':
     text_position_cnt = (100, 100)
     text_position_time = (100, 120)
     
-    video_name = "test_slowmo_trimed.mp4"
+    video_name = "FDP.mp4"
     frame_jump = 0
 
     ## For algorithm tuning
@@ -429,8 +426,6 @@ if __name__ == '__main__':
             end = time.time()
             frame = tracker.add_text_to_frame(frame, str(end - strt), position=text_position_time, font_scale=font_scale)
             try:
-                print('a,', raw_marker_pos)
-                print('b', modified_marker_pos)
                 measure.append([cnt, angle_0,angle_1,angle_2, 
                                 # tuple(raw_marker_pos[0][0][0]), tuple(raw_marker_pos[0][0][1]), # fingertip
                                 tuple(raw_marker_pos[0][0]),

@@ -57,7 +57,15 @@ class VideoMaskProcessor:
                 binary[labels==label] = 0
             
         return binary
+    
+    def make_mask_per_frame(self, frame: np.ndarray) -> np.ndarray:
+        
+        bin_f = self.binarize_frame(frame)
+        filt = self.filter_small_black_regions(bin_f)
+        filt = self.filter_small_white_regions(filt)
+        mask8 = (filt * 255).astype(np.uint8)
 
+        return mask8
 
     def save_mask_video(self, input_path: str, output_path: str = None):
         """

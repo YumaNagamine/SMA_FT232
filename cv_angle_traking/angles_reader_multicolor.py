@@ -451,7 +451,17 @@ class AngleTracker(object): # TODO
         out = cv2.VideoWriter(self.output_video_url, fourcc, fps, (width, height))
         for frame in frames:out.write(frame)
         out.release()
-
+   
+    def store_video_rename(self,frames, fps, added_name):
+        self.output_video_url = os.path.join(self.output_folder_path,f"{self.video_name.split('.')[0]}_{added_name}.mp4") 
+        # Function to store the video with updated frames
+        fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
+        # fourcc = cv2.VideoWriter_fourcc(*'x264')# # 'avc1' # Mac
+        print('fourcc built')
+        height, width, _ = frames[0].shape
+        out = cv2.VideoWriter(self.output_video_url, fourcc, fps, (width, height))
+        for frame in frames:out.write(frame)
+        out.release()
 
 if __name__ == '__main__':
     import os,sys,json
