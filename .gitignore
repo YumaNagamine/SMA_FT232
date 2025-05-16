@@ -5,3 +5,4 @@ sc01/
 .pyc
 __pycache__
 .pt
+checkpoints/
