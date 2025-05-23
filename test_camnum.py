@@ -6,7 +6,7 @@ import time,cv2
 
 def find_available_cameras():
     available_cameras = []
-    for i in range(100000):  
+    for i in range(100):  
         cap = cv2.VideoCapture(i)
         if cap.isOpened():
             available_cameras.append(i)

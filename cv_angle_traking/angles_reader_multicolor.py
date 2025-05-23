@@ -14,7 +14,6 @@ class AngleTracker(object): # TODO
         DATA_FOLDER = './sc01/' 
         self.video_name = video_name
         self.video_path = DATA_FOLDER + video_name #"../IMG_7102.MOV"
-        print(self.video_path)
         self.output_folder_path = DATA_FOLDER + self.video_name.split('.')[0] +'/'# "../output/video"
         # output_folder_csv = output_folder_path #"../output/csv"
         self.video_pos_file_url = self.output_folder_path + self.video_name.split('.')[0] +'.json'
@@ -150,26 +149,27 @@ class AngleTracker(object): # TODO
             # Single img denoising
             frame_tmp = cv2.fastNlMeansDenoisingColored(frame_tmp,None, 7, 7, 3, 5)# 
             # _mask = _mask>0.5
+        
+            # Extract color channels
+            L_channel = frame_tmp[:, :, 0] # lightness
+            a_channel = frame_tmp[:, :, 1] # red -> green
+            b_channel = frame_tmp[:, :, 2] # Yellow -> Blue
 
-        # Extract color channels
-        L_channel = frame_tmp[:, :, 0] # lightness
-        a_channel = frame_tmp[:, :, 1] # red -> green
-        b_channel = frame_tmp[:, :, 2] # Yellow -> Blue
+            marker_rangers = self.marker_rangers
+            markers_masks = []
+            # print(marker_rangers)
+            for i in range(num_maker_sets):# Color segmentation using NumPy array operations
+                _mask =((L_channel > marker_rangers[i][0][0]) & (L_channel < marker_rangers[i][0][1]) &
+                        (a_channel > marker_rangers[i][1][0]) & (a_channel < marker_rangers[i][1][1]) &
+                        (b_channel > marker_rangers[i][2][0]) & (b_channel < marker_rangers[i][2][1]) )
+                
+                if self.denoising_mode == 'monocolor':
+                    # Single img denoising
+                    _mask = cv2.fastNlMeansDenoising(np.uint8(_mask),None, 5, 3, 5)# 
+                    _mask = _mask>0.5
 
-        marker_rangers = self.marker_rangers
-        markers_masks = []
-        # print(marker_rangers)
-        for i in range(num_maker_sets):# Color segmentation using NumPy array operations
-            _mask =((L_channel > marker_rangers[i][0][0]) & (L_channel < marker_rangers[i][0][1]) &
-                    (a_channel > marker_rangers[i][1][0]) & (a_channel < marker_rangers[i][1][1]) &
-                    (b_channel > marker_rangers[i][2][0]) & (b_channel < marker_rangers[i][2][1]) )
-            
-            if self.denoising_mode == 'monocolor':
-                # Single img denoising
-                _mask = cv2.fastNlMeansDenoising(np.uint8(_mask),None, 5, 3, 5)# 
-                _mask = _mask>0.5
+                markers_masks.append( _mask )
 
-            markers_masks.append( _mask )
         
         if True: # Display masks in a cv high gui window
             mask_in_one = np.vstack((markers_masks[0],markers_masks[1],markers_masks[2],markers_masks[3]))
@@ -177,7 +177,9 @@ class AngleTracker(object): # TODO
             # print("!!!!:",type(_mask))
             # cv2.namedWindow("Mask",cv2.WINDOW_GUI_EXPANDED)
             # while True:
-            cv2.imshow("Mask",255*np.uint8(mask_in_one))         
+
+            cv2.imshow("Mask",255*np.uint8(mask_in_one))    
+
             # cv2.waitKey(1) 
                 
         return markers_masks
@@ -231,6 +233,8 @@ class AngleTracker(object): # TODO
             # Cal tolerance range
             upper_limit = frame_to_segment[_pos[1]][_pos[0]] + [self.maker_tolerance_L[_i], self.maker_tolerance_a[_i], self.maker_tolerance_b[_i]]  
             lower_limit = frame_to_segment[_pos[1]][_pos[0]] - [self.maker_tolerance_L[_i], self.maker_tolerance_a[_i], self.maker_tolerance_b[_i]]
+            if _i == 0:
+                self.fingertip_segment = frame_to_segment[_pos[1]][_pos[0]]
             # print(upper_limit,lower_limit);exit() # [146 171  82] [122 147  58]
             marker_rangers_ch = []
             # Save to variable
@@ -285,7 +289,7 @@ class AngleTracker(object): # TODO
         cielab_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
 
         # Segment markers by color in the CIELAB color space
-        [marker_blue, marker_pink, marker_green, marker_yellow] = self.segment_marker_by_color(cielab_frame)
+        [marker_blue, marker_pink, marker_green, marker_yellow] = self.segment_marker_by_color(cielab_frame, 4)
         # marker_blue, marker_pink, marker_green, marker_yellow = segment_marker_by_color(cielab_frame)
 
 

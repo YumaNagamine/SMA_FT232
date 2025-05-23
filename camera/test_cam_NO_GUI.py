@@ -6,15 +6,15 @@ if __name__=='__main__': # Test codes # Main process
     parentdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0,parentdir)
 
-    from lib.GENERALFUNCTIONS import *
+    # from lib.GENERALFUNCTIONS import *
 
 import os
 os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 
-import cv2
-import ttkbootstrap as ttk
-from PIL import Image, ImageTk
-from lib.GENERALFUNCTIONS import *
+import cv2,time
+# import ttkbootstrap as ttk
+# from PIL import Image, ImageTk
+# from lib.GENERALFUNCTIONS import *
 import tkinter as tk
 from collections import deque
 import concurrent.futures
@@ -57,10 +57,10 @@ if __name__ == "__main__":
     print('Running on env: ',sys.version_info)
     
     ## Create CAM obj
-    cam_num =  0
+    cam_num =  1
     
-    is_lighting = True
-    is_recod_video = True    
+    is_lighting = False
+    is_recod_video = False    
     cam_name = 'AR0234' # 'OV7251' #  
     
     cap = cv2.VideoCapture(cam_num,cv2.CAP_DSHOW)  #cv2.CAP_DSHOW  CAP_WINRT CAP_MSMF
@@ -181,6 +181,7 @@ if __name__ == "__main__":
             if cv2.waitKey(1) & 0xFF == ord('q'):  # 按'q'键退出
                     break
     finally:
+        # cap.stop()
         cap.release()
         cv2.destroyAllWindows()
         if is_recod_video: saver.finalize()
