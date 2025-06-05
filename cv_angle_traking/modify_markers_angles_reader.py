@@ -1,7 +1,7 @@
 # This file is created by Nagamine on March 31.(copy of angles_reader)
 # to analize new-finger movement from exisxting video 
 import os
-os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
+os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin") # be careful that it won't work if it's normal opencv
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -355,16 +355,16 @@ class ModifiedMarkers(AngleTracker):
                 lowerb = tuple(int(x) for x in rng[0])
                 upperb = tuple(int(x) for x in rng[1])
                 mask = cv2.inRange(cielab, lowerb, upperb)
-                masks.append(mask)
+                masks.append(mask > 0)
 
-            masks = np.stack(mask)
+            # masks = np.stack(mask)
             return masks
         else: # top camera
-            rng = self.marker_rangers[0].T # brown marker
-            lowerb = tuple(int(x) for x in rng[0])
-            upperb = tuple(int(x) for x in rng[1])
+            # rng = self.fingertip_range[0].T # brown marker
+            lowerb = tuple(int(x) for x in self.fingertip_range[0][0])
+            upperb = tuple(int(x) for x in self.fingertip_range[0][1])
             mask = cv2.inRange(cielab, lowerb, upperb)
-            return mask
+            return [mask > 0]
 
     def extract_angle_improved(self, frame, colors, modify=True): # BUGS here! faster than upper one, but cannot display masks
         
@@ -469,6 +469,7 @@ class ModifiedMarkers(AngleTracker):
                             cv2.circle(frame, (point[0], point[1]), radius=idx * 10, color=color, thickness=2)
                         for idx, point in enumerate(modified_point_per_mask):
                             cv2.circle(frame, (point[0], point[1]), radius=idx*10 + 5, color=color, thickness=2)
+                        
                      # visualize circles on raw marker positions
                         
                         # for idx, point in enumerate(point_per_mask):
@@ -541,6 +542,7 @@ class ModifiedMarkers(AngleTracker):
                 self.estimate_joint(modified_markerset_per_frame)
                 cv2.circle(frame, center=self.DIP, radius=10, color=[0,255,0], thickness=10)
                 cv2.circle(frame, center=self.PIP, radius=10, color=[0,255,0], thickness=10)
+                cv2.circle(frame, center=self.MCP, radius=10, color=[0,255,0], thickness=10)
                 try:
                     angle_0 = self.calculate_angle(modified_markerset_per_frame[0], modified_markerset_per_frame[1])[2]
                     angle_0 = int(10*angle_0)/10
@@ -604,10 +606,9 @@ class ModifiedMarkers(AngleTracker):
         self.PIP = modified_markerset_per_frame_vec[2][0] + (shifters[1]/np.linalg.norm(direction_vector_1))*direction_vector_1
         self.DIP = self.DIP.astype(np.int32)
         self.PIP = self.PIP.astype(np.int32)
+        self.MCP = (modified_markerset_per_frame[3][0][0]-130, modified_markerset_per_frame[3][0][1])
 
-        return self.DIP, self.PIP
-
-
+        return self.DIP, self.PIP, self.MCP
 
     def acquire_marker_color(self, frame, cv_choose_wd_name):
         marker_rangers = super().acquire_marker_color(frame, cv_choose_wd_name)
@@ -631,14 +632,23 @@ class ModifiedMarkers(AngleTracker):
         print("measure:", type(measure))
         print(type(np_data), np_data)
         saveFigure(np_data, f"{self.video_name.split('.')[0]}_extracted.csv", ["angle_2","angle_1","angle_0","frame"], show_img=False, figure_mode='Single')
+
+    def store_data_disignated_columns(self, measure, set_fps=30, columns=[]):
+        df_angle = pd.DataFrame(data=measure, columns=columns)
+        df_angle["time"] = df_angle["frame"]/set_fps
+        df_angle.to_csv(os.path.join(self.output_folder_path, f"{self.video_name.split('.')[0]}_extracted.csv"),index=False)
+        np_data = np.array(measure)[:, 0:4 ,::-1]
+        print("measure:", type(measure))
+        print(type(np_data), np_data)
+        # saveFigure(np_data, f"{self.video_name.split('.')[0]}_extracted.csv", ["angle_2","angle_1","angle_0","frame"], show_img=False, figure_mode='Single')    
     
 # --------------↓　for single joint tracking　↓----------------
 
     def extract_single_angle(self, frame, basepoint): # topview
         
         cielab_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
-        # mask = self.segment_marker_by_color_opencv(frame, False)
-        mask = self.segment_marker_by_color(cielab_frame, 1)[0]
+        mask = self.segment_marker_by_color_opencv(frame, False)[0]
+        # mask = self.segment_marker_by_color(cielab_frame, 1)[0]
 
         # Initialize a list to store points per frame
         markerpos_per_frame = []
@@ -668,8 +678,7 @@ class ModifiedMarkers(AngleTracker):
                     modified_pos_per_frame.append((-1, -1))
                     return frame, [], None, None
                 
-                # only extract ball joint
-
+                # extract only a ball joint
                 max_area = 0
                 for idx, index in enumerate(filtered_regions):
                     left, top, width, height, area = stats[index + 1]
@@ -685,14 +694,23 @@ class ModifiedMarkers(AngleTracker):
                 cv2.circle(frame, (markerpos_per_frame[0][0], markerpos_per_frame[0][1]), radius=10, color=[255,255,255], thickness=2)
                 cv2.circle(frame, basepoint, radius=10, color=[255,255,255], thickness=-1)
                 
-                # calculate modified position and angle 
                 vector_to_rotate = np.array([centroid_x, centroid_y]) - basepoint
-                rotated_vec = self.rotate_vector(vector_to_rotate, self.theta_top)
+                # calculate modified position and angle 
+                if markerpos_per_frame[0][0] <= basepoint[0] :# the case fingertip is left of MCP
+                    rotated_vec = self.rotate_vector(vector_to_rotate, self.theta_top)
+                    point_on_fingerline = basepoint - np.array([1000,0])
+                else:
+                    rotated_vec = self.rotate_vector(vector_to_rotate, -self.theta_top)
+                    point_on_fingerline = basepoint + np.array([1000,0])
+
+                print('rotated_fjdklfjdkl', rotated_vec)
                 modified_pos = basepoint + rotated_vec
+                print('modified fingertip', modified_pos)
                 modified_pos_per_frame.append(tuple(modified_pos))
-                angle = self.calculate_single_angle(modified_pos_per_frame[0], basepoint - np.array([200,0]), basepoint)
+                angle = self.calculate_single_angle(modified_pos_per_frame[0], point_on_fingerline, basepoint)
                 angle = int(10*np.degrees(angle))/10
-                print('modified tip,', modified_pos_per_frame)
+                    
+                
                 #visualize circles on modified marker position
                 cv2.circle(frame, (modified_pos_per_frame[0][0], modified_pos_per_frame[0][1]), radius= 10, color=[0,255,0], thickness=-1)
                 
@@ -707,7 +725,8 @@ class ModifiedMarkers(AngleTracker):
                 
                 # Visualize the line connecting the two points
                 cv2.line(frame, point1, point2, color=[255,255,255], thickness=3)
-                cv2.line(frame, basepoint, (0, basepoint[1]), color=[255,255,255], thickness=3)
+                cv2.line(frame,point_on_fingerline, basepoint, color=[255,255,255], thickness=3)
+                self.fingertip = (int(modified_pos_per_frame[0][0]), int(modified_pos_per_frame[0][1]))
 
             except: # if error occurs, go to next mask 本当にこれで機能する？
                 return frame, [], None, None
@@ -804,8 +823,8 @@ if __name__ == '__main__':
             # frame = tracker.frame_trimer(frame, 1300, 1200)
             
             if cnt==frame_shift: tracker.acquire_marker_color(frame,cv_choose_wd_name)
-            frame, angle_0, angle_1, angle_2, raw_marker_pos, modified_marker_pos  = tracker.extract_angle(frame, colors, modify=True)
-            # frame, angle_0, angle_1, angle_2, raw_marker_pos, modified_marker_pos  = tracker.extract_angle_improved(frame,colors, modify=True)
+            # frame, angle_0, angle_1, angle_2, raw_marker_pos, modified_marker_pos  = tracker.extract_angle(frame, colors, modify=True)
+            frame, angle_0, angle_1, angle_2, raw_marker_pos, modified_marker_pos  = tracker.extract_angle_improved(frame,colors, modify=True)
 
             # # Use the original frame instead of creating a copy
             # try: frame, angle_0, angle_1, angle_2  = tracker.extract_angle(frame, False)
@@ -828,7 +847,7 @@ if __name__ == '__main__':
                                 tuple(modified_marker_pos[0][0]),
                                 tuple(modified_marker_pos[0][1]),tuple(modified_marker_pos[1][0]),tuple(modified_marker_pos[1][1]),
                                 tuple(modified_marker_pos[2][0]),tuple(modified_marker_pos[2][1]),tuple(modified_marker_pos[3][0]),
-                                tuple(tracker.DIP), tuple(tracker.PIP)])
+                                tuple(tracker.DIP), tuple(tracker.PIP), tuple(tracker.MCP)])
             except:
                 cv2.imshow('Video Preview', frame)
                 continue

@@ -21,13 +21,14 @@ sys.path.insert(0, PROJECT_ROOT)
 from control.CameraSetting import Camera
 
 # --- CONFIGURATION ---
-BOARD_SIZE     = (10, 5)    # inner corners per row, column
+BOARD_SIZE     = (10, 7)    # inner corners per row, column (10,5) if side
 SQUARE_SIZE    = 25.0       # millimeters
-CAM_POSITIONS  = ['side', 'top']
-BASE_IMG_DIR   = './IMG'
-BASE_OUTPUT    = './CAL/cam'
+BASE_IMG_DIR   = '.\\IMG'
+BASE_OUTPUT    = '.\\CAL\\cam'
 JSON_TPL       = 'intrinsics_flat_{mode}_{timestamp}.json'
 CAM_INDICES    = [0, 1]
+CAM_POSITIONS  = ['side', 'top']
+
 DEFAULT_FRAMES = 30
 
 # --- UTILITY FUNCTIONS ---
@@ -59,16 +60,29 @@ def calibrate_intrinsics(mode):
     objp[:,:2] = np.mgrid[0:BOARD_SIZE[0],0:BOARD_SIZE[1]].T.reshape(-1,2) * SQUARE_SIZE
     obj_points, img_points = [], []
     last_gray = None
+    
     for path in glob.glob(glob_pattern):
         img = cv2.imread(path)
         if img is None: continue
+        else:print(f'\nImage FOUND as: {path}\nProcessing')
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        found, corners = cv2.findChessboardCorners(gray, BOARD_SIZE, None)
+        print(f'Graysclaed: {path}, shape={gray.shape}')
+        
+        # found, corners = cv2.findChessboardCorners(gray, BOARD_SIZE, None)
+        found, corners = cv2.findChessboardCornersSB(gray, BOARD_SIZE, flags=cv2.CALIB_CB_NORMALIZE_IMAGE)
+
         if found:
             obj_points.append(objp)
             img_points.append(corners)
+        else: print(f'Chessboard not found in {path}!!!!')
+             
         last_gray = gray
+    print(f'Found {len(obj_points)} chessboard images for mode="{mode}"')
+    print(f'Last image shape: {last_gray.shape if last_gray is not None else "None"}')
+    
     if not obj_points or last_gray is None:
+        
+        print(f'Check if images are in {BASE_IMG_DIR}/{mode}cali/',glob.glob(glob_pattern))
         raise RuntimeError(f'No valid chessboard images found for mode="{mode}"')
     h, w = last_gray.shape
     ret, mtx, dist, _, _ = cv2.calibrateCamera(obj_points, img_points, (w,h), None, None)
@@ -126,7 +140,7 @@ def save_results(mtx, dist, flat_map, mode, cam_idx):
         'timestamp': ts,
         'camera_matrix': mtx.tolist(),
         'dist_coeffs': dist.flatten().tolist(),
-        'flat_map_shape': flat_map.shape
+        'flat_map_shape': [1200,1920]
     }
     filename = JSON_TPL.format(mode=mode, timestamp=ts)
     path = os.path.join(out_dir, filename)
@@ -152,12 +166,21 @@ def main():
     # Intrinsic calibration (uses sidecali/ or topcali/ directory)
     mtx, dist = calibrate_intrinsics(mode)
 
+    doflatcali = False    
+    doflatcali= input(f'Do flat calibration? (0,1):\n{doflatcali}')
     # Flat-field reference
-    try:
-        flat_map = load_flat_field(mode)
-    except FileNotFoundError:
-        flat_map = capture_flat_field(cam_idx)
-
+    if doflatcali:
+        try:
+            is_capture_flat_field = input('Capture flat-field? (0,1):\n')
+            if is_capture_flat_field:
+                flat_map = capture_flat_field(cam_idx)
+            else:
+                flat_map = load_flat_field(mode)
+        except FileNotFoundError:
+            print('Flat-field Cali failed, skipping .... .... ')
+    else:
+        flat_map = None
+        print('Flat-field calibration skipped.')
     # Save all results
     save_results(mtx, dist, flat_map, mode, cam_idx)
 

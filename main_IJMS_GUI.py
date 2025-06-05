@@ -235,9 +235,9 @@ class exprimentGUI():
             return []
 
         except Exception as err:
-            print('\rVideo frame load from thread manager failed: ', end='')
-            print('\tDue to:',err, end='')
-            print('Tring again ... ...', end='')
+            # print('\rVideo frame load from thread manager failed: ', end='')
+            # print('\tDue to:',err, end='')
+            # print('Tring again ... ...', end='')
             self.root_window.after(1000,self.refresh_img)
 
     def make_thread(self, func, *args):

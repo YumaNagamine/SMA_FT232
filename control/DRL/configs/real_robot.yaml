@@ -1,0 +1,45 @@
+# configs/real_robot.yaml
+
+# ━━━━━ 環境設定 ━━━━━
+image_height: 64                # カメラ画像をリサイズする高さ
+image_width: 64                 # カメラ画像をリサイズする幅
+max_steps_per_episode: 500      # 1エピソードあたりの最大ステップ数
+mode: "real"                    # real または sim （必要なら区別）
+
+# ゴール設定：1エピソード開始時にランダム1枚選ぶ場合は schedule を null にする
+goal_schedule:                   # 以下はステップごとに画像を切り替えたい場合の例
+  - step: 0
+    image: "goal_images/pose_A.png"
+  - step: 200
+    image: "goal_images/pose_B.png"
+  - step: 400
+    image: "goal_images/pose_C.png"
+
+# 目標画像を格納しているフォルダ
+goal_dir: "data/goal_images"
+
+# ━━━━━ 安全制約 ━━━━━
+max_active_time: 1.0          # Duty比>0 の累積時間（秒） の上限
+step_time: 0.1                 # 1ステップあたりの経過時間（秒）
+
+# ━━━━━ 報酬重み ━━━━━
+w_img: 1.0                     # 画像誤差項の重み
+w_time: 1.0                    # 安全制約ペナルティ項の重み
+w_action: 0.1                  # アクション大きさペナルティ項の重み
+big_penalty: 5.0               # max_active_time 違反時の大ペナルティ
+
+# ━━━━━ SAC ハイパーパラメータ ━━━━━
+gamma: 0.99
+tau: 0.005
+alpha: 0.2                     # エントロピー係数（固定）
+actor_lr: 3e-4
+critic_lr: 3e-4
+batch_size: 128
+buffer_size: 100000
+start_train_threshold: 1000    # ここまではバッファ蓄積のみ
+train_freq: 1                  # 1ステップごとに学習
+policy_update_freq: 1
+target_update_freq: 1
+
+# ━━━━━ 初期ポリシー（BC）ロードパス ━━━━━
+bc_pretrain_path: "data/initial_policy/bc_actor.pth"  # ない場合は null

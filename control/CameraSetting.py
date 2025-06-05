@@ -14,30 +14,31 @@ def prop_name(prop_id):
     return _prop_map.get(prop_id, f'UNKNOWN({prop_id})')
 
 
-
+CAM_INDICES    = [0, 1]
+CAM_POSITIONS  = ['side', 'top']
 # --- Slider configuration for camera parameters --------------------------------
 PARAMS = [
     (cv2.CAP_PROP_AUTO_EXPOSURE, 100, lambda x: 0.25 + (x/100)*0.5, lambda v: int((v-0.25)/0.5*100), 0.25),
     (cv2.CAP_PROP_EXPOSURE, 12,lambda x: -13 + x, lambda v: int(v + 13), -10),
     (cv2.CAP_PROP_GAIN, 255,lambda x: x, lambda v: int(v), 0),
     (cv2.CAP_PROP_AUTO_WB, 1, lambda x: x, lambda v: int(v), 0),
-    (cv2.CAP_PROP_BRIGHTNESS, 512, lambda x: x-256, lambda v: int(v+256), 240),
-    (cv2.CAP_PROP_CONTRAST, 512,lambda x: x-256, lambda v: int(v+256), 140),
+    (cv2.CAP_PROP_BRIGHTNESS, 512, lambda x: x-256, lambda v: int(v+256), 0),
+    (cv2.CAP_PROP_CONTRAST, 512,lambda x: x-256, lambda v: int(v+256), 0),
     (cv2.CAP_PROP_SATURATION, 255,lambda x: x, lambda v: int(v), 70),
-    (cv2.CAP_PROP_HUE, 179,lambda x: x, lambda v: int(v), 0),
+    (cv2.CAP_PROP_HUE, 179,lambda x: x, lambda v: int(v),70),
     (cv2.CAP_PROP_SHARPNESS, 255, lambda x: x, lambda v: int(v), 0),
 ]
 
 
 
 class Camera(VideoCapture):
-    # CAM_CAL_SIDE_URL = './CAL/cam/side/intrinsics_flat_side_20250519_165804.json'
-
+ 
     def __init__(self,SOURCE, CAP_API=None,cam_name="side",video_path = None):
         super().__init__(SOURCE, CAP_API)
         self.cam_name = cam_name
         self.video_path = video_path
         self.frame_id = 0
+        self.maxlen = 30
         self.frame_queue = deque()
 
         self.is_opened = self.isOpened()
@@ -47,28 +48,40 @@ class Camera(VideoCapture):
         else:
             print('Camera opened successfully')
         
-    def load_calibration(self, config_path: str ):
-        """
-        Load and normalize flat-field reference at IMG/<mode>cali/flat_white.jpg.
-        """
-        flat_path = f'./IMG/{self.cam_name}cali/flat_white4.jpg'
-        # path = os.path.join(BASE_IMG_DIR, f'{mode}cali', 'flat_white.jpg')
-        flat_bgr = cv2.imread(flat_path, cv2.IMREAD_COLOR)
-        if flat_bgr is None:            raise FileNotFoundError(f'Flat-field file not found: {flat_path}')
+    def load_calibration(self, config_path: str=None):
+
+        "Flat while feild calibration for side or top camera."
+        print("Camera loading for json file, cam No.",self.cam_name)
+        if 'side' in self.cam_name:
+            if config_path is None:
+                config_path = './CAL/cam/side/intrinsics_flat_side_20250527_204730.json'
+            
+            """
+            Load and normalize flat-field reference at IMG/<mode>cali/flat_white.jpg.
+            """
+            flat_path = f'./IMG/{self.cam_name}cali/flat_white.jpg'
+            # path = os.path.join(BASE_IMG_DIR, f'{mode}cali', 'flat_white.jpg')
+            flat_bgr = cv2.imread(flat_path, cv2.IMREAD_COLOR)
+            if flat_bgr is None:            raise FileNotFoundError(f'Flat-field file not found: {flat_path}')
+            
+            # to float32 and add small epsilon
+            fmap = flat_bgr.astype(np.float32) + 1e-3
+            # heavy blur to capture smooth illumination field
+            fmap = cv2.GaussianBlur(fmap, (101, 101), 0)
+            # normalize each channel so its mean is 1.0
+            for c in range(3):
+                ch = fmap[:, :, c]
+                fmap[:, :, c] = ch / np.mean(ch)
+            self.flat_ref = fmap  # shape H×W×3, float32
+            print(f"Loaded RGB flat-field for '{self.cam_name}' (shape {fmap.shape})")
+
+        elif 'top' in self.cam_name:
+            if config_path is None:
+                config_path = './CAL/cam/top/intrinsics_flat_top_20250527_204845.json'
         
-        # to float32 and add small epsilon
-        fmap = flat_bgr.astype(np.float32) + 1e-3
-        # heavy blur to capture smooth illumination field
-        fmap = cv2.GaussianBlur(fmap, (101, 101), 0)
-        # normalize each channel so its mean is 1.0
-        for c in range(3):
-            ch = fmap[:, :, c]
-            fmap[:, :, c] = ch / np.mean(ch)
-        self.flat_ref = fmap  # shape H×W×3, float32
-        print(f"Loaded RGB flat-field for '{self.cam_name}' (shape {fmap.shape})")
 
 
-        """
+        """ Distortion calibration for side or top camera.
         Load one camera's calibration from JSON and
         set self.cam_name, self.camera_matrix, self.dist_coeffs,
         self.resolution, self.map1/map2, and self.morphology.
@@ -97,7 +110,7 @@ class Camera(VideoCapture):
             h = int(self.get(cv2.CAP_PROP_FRAME_HEIGHT))
             self.resolution = (w, h)
  
-        # Precompute undistortion maps
+        # Precompute q
         self.map1, self.map2 = cv2.initUndistortRectifyMap(
             self.camera_matrix, self.dist_coeffs, None,
             self.camera_matrix, self.resolution, cv2.CV_16SC2
@@ -111,7 +124,8 @@ class Camera(VideoCapture):
     def process_frame(self, frame,
                       doflat=True,
                       doundistort=True,
-                      dowhitebalance=False,do_white_balance=True,blur_ksize: int = 25):
+                      dowhitebalance=False,
+                      do_white_balance=True,blur_ksize: int = 25):
         """
         Returns:
           - an HSV image (uint8, H×W×3) with all channels:
@@ -134,7 +148,8 @@ class Camera(VideoCapture):
         # Gray-world WB
         if do_white_balance:
             means = cv2.mean(img)[:3]; overall = sum(means)/3.0
-            for c in range(3): img[:,:,c]=np.clip(img[:,:,c].astype(np.float32)*(overall/(means[c] or 1)),0,255)
+            for c in range(3): 
+                img[:,:,c] = np.clip(img[:,:,c].astype(np.float32)*(overall/(means[c] or 1)),0,255)
             img = img.astype(np.uint8)
         
         # Gaussian blur
@@ -143,7 +158,7 @@ class Camera(VideoCapture):
             img = cv2.GaussianBlur(img, (k, k), 0)
         
         # 4) White balance (gray-world): scale each channel so its mean equals overall mean
-        if dowhitebalance:
+        if dowhitebalance: # May have BUG
             # compute per-channel means
             means = cv2.mean(img)[:3]
             overall = sum(means) / 3.0
@@ -151,10 +166,10 @@ class Camera(VideoCapture):
             # apply scaling and clip
             for c in range(3):
                 img[:, :, c] = np.clip(img[:, :, c].astype(np.float32) * scale[c], 0, 255)
-            img = img.astype(np.uint8)
-
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        return hsv
+        
+        img = img.astype(np.uint8)
+        # hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        return img
 
     
     
@@ -180,7 +195,7 @@ class Camera(VideoCapture):
         cam_name = 'AR0234'
         if cam_name == 'AR0234': # Aptina AR0234
             target_fps = 90
-            resolution = (1600,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
+            resolution = (1920,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
             # width, height = resolution
             # # Usage example:
             # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -192,6 +207,8 @@ class Camera(VideoCapture):
                     cv2.CAP_PROP_EXPOSURE:            -10 if is_lighting else -3,    # your desired exposure
                     cv2.CAP_PROP_GAIN:                0,      # your desired gain
 
+                    cv2.CAP_PROP_FRAME_WIDTH:          resolution[0],
+                    cv2.CAP_PROP_FRAME_HEIGHT:         resolution[1],
                     cv2.CAP_PROP_AUTO_WB:             0,      # disable auto white balance
                     # cv2.CAP_PROP_WHITE_BALANCE_BLUE_U: 4600,  # tweak as needed
                     # cv2.CAP_PROP_WHITE_BALANCE_RED_V:  -1,
@@ -200,14 +217,12 @@ class Camera(VideoCapture):
                     # cv2.CAP_PROP_FOCUS:               10,     # manual focus value
 
                     # cv2.CAP_PROP_ISO_SPEED:           0,    # Linux/V4L2 only
-                    cv2.CAP_PROP_BRIGHTNESS:          239,    # mid‐point
-                    cv2.CAP_PROP_CONTRAST:            137,
+                    cv2.CAP_PROP_BRIGHTNESS:          0,    # mid‐point
+                    cv2.CAP_PROP_CONTRAST:            0,
                     cv2.CAP_PROP_SATURATION:          70,
-                    cv2.CAP_PROP_HUE:                 0,
+                    cv2.CAP_PROP_HUE:                 70,
                     cv2.CAP_PROP_SHARPNESS:           0,
 
-                    cv2.CAP_PROP_FRAME_HEIGHT:         resolution[1],
-                    cv2.CAP_PROP_FRAME_WIDTH:          resolution[0],
 
                     cv2.CAP_PROP_FPS:                  target_fps,
                     cv2.CAP_PROP_FOURCC:               cv2.VideoWriter_fourcc(*'YUY2'), # 'YUY2' MJPG
@@ -215,8 +230,14 @@ class Camera(VideoCapture):
                 }
             elif self.cam_name == 'top':
                 manual_settings = {
+                    cv2.CAP_PROP_FPS:                  target_fps,
+                    cv2.CAP_PROP_FOURCC:               cv2.VideoWriter_fourcc(*'YUY2'), # 'YUY2' MJPG
+                    cv2.CAP_PROP_BUFFERSIZE:           0,  # 设置缓冲区大小为2
+                    cv2.CAP_PROP_FRAME_WIDTH:          resolution[0],
+                    cv2.CAP_PROP_FRAME_HEIGHT:         resolution[1],
+
                     cv2.CAP_PROP_AUTO_EXPOSURE:       .25,#0.25,   # DirectShow: 0.25=manual, 0.75=auto
-                    cv2.CAP_PROP_EXPOSURE:            -10 if is_lighting else -3,    # your desired exposure
+                    cv2.CAP_PROP_EXPOSURE:            -9 if is_lighting else -3,    # your desired exposure
                     cv2.CAP_PROP_GAIN:                0,      # your desired gain
 
                     cv2.CAP_PROP_AUTO_WB:             0,      # disable auto white balance
@@ -227,18 +248,11 @@ class Camera(VideoCapture):
                     # cv2.CAP_PROP_FOCUS:               10,     # manual focus value
 
                     # cv2.CAP_PROP_ISO_SPEED:           0,    # Linux/V4L2 only
-                    cv2.CAP_PROP_BRIGHTNESS:          239,    # mid‐point
-                    cv2.CAP_PROP_CONTRAST:            137,
-                    cv2.CAP_PROP_SATURATION:          70,
+                    cv2.CAP_PROP_BRIGHTNESS:          250,    # mid‐point
+                    cv2.CAP_PROP_CONTRAST:            0,
+                    cv2.CAP_PROP_SATURATION:          120,
                     cv2.CAP_PROP_HUE:                 0,
-                    cv2.CAP_PROP_SHARPNESS:           0,
-
-                    cv2.CAP_PROP_FRAME_HEIGHT:         resolution[1],
-                    cv2.CAP_PROP_FRAME_WIDTH:          resolution[0],
-
-                    cv2.CAP_PROP_FPS:                  target_fps,
-                    cv2.CAP_PROP_FOURCC:               cv2.VideoWriter_fourcc(*'YUY2'), # 'YUY2' MJPG
-                    cv2.CAP_PROP_BUFFERSIZE:           0,  # 设置缓冲区大小为2
+                    cv2.CAP_PROP_SHARPNESS:           0, 
                 }
             # Apply and report
             self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
@@ -259,7 +273,7 @@ class Camera(VideoCapture):
         self.set(cv2.CAP_PROP_POS_FRAMES, frame_shift)
         self.set(cv2.CAP_PROP_FPS, output_fps)
         self.output_path = video_path + '_' + following_name
-        resolution = (1600,1200)
+        resolution = (1920,1200)
         if self.cam_name == 'side':   
             manual_settings = {
                 cv2.CAP_PROP_AUTO_EXPOSURE:       .25,#0.25,   # DirectShow: 0.25=manual, 0.75=auto
@@ -329,7 +343,7 @@ class Camera(VideoCapture):
 
         if cam_name == 'AR0234': # Aptina AR0234
             target_fps = 90
-            resolution = (1600,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
+            resolution = (1920,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
             width, height = resolution
             self.set(cv2.CAP_PROP_AUTO_WB,    0)  # turn off auto–white–balance NEW!
             self.set(cv2.CAP_PROP_FRAME_WIDTH, resolution[0]) 
@@ -380,9 +394,13 @@ if __name__ == '__main__': #   Quick Test the Camera class
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, PROJECT_ROOT)
 
+    cam_num = int(input('Use top Camera? (0/1): '))
+    cam_name = CAM_POSITIONS[cam_num]
+
+
     retry = 5
     while retry > 0:
-        cam = Camera(0, cv2.CAP_DSHOW, cam_name='side')
+        cam = Camera(cam_num, cv2.CAP_MSMF, cam_name=cam_name)
         if cam.isOpened():
             break
         cam.release()
@@ -390,10 +408,10 @@ if __name__ == '__main__': #   Quick Test the Camera class
         retry -= 1
     # Initialize camera
     # cam = Camera(0, cv2.CAP_DSHOW, cam_name='side')
-    CAM_CAL_SIDE_URL = './CAL/cam/side/intrinsics_flat_side_20250519_165804.json'
 
-    cam.load_calibration(CAM_CAL_SIDE_URL)
-    # cam.setup_capture(resolution=(1600, 1200), fps=90, lighting=True)
+
+    # cam.load_calibration()
+    # cam.setup_capture(resolution=(1920, 1200), fps=90, lighting=True)
     cam.realtime()
  
 
@@ -405,7 +423,7 @@ if __name__ == '__main__': #   Quick Test the Camera class
 
     # Create camera sliders and process toggle
     create_sliders(ctrl, cam)
-    cv2.createTrackbar('Process ON/OFF',ctrl,1,1,lambda x:None)
+    cv2.createTrackbar('Process ON/OFF',ctrl,0,1,lambda x:None) # (name, window_name, value, maxval, onChange)
 
     while True:
         ret,frame=cam.read()
@@ -413,6 +431,7 @@ if __name__ == '__main__': #   Quick Test the Camera class
         sw=cv2.getTrackbarPos('Process ON/OFF',ctrl)
         if sw:
             processed=cam.process_frame(frame)
+            
             right=cv2.cvtColor(processed,cv2.COLOR_HSV2BGR)
         else:
             right=frame.copy()

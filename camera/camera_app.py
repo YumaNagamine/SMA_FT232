@@ -23,6 +23,8 @@ from control.CameraSetting import Camera
 
 
 CONFIG_PATH = os.path.join(dir_path, 'camera_config.json')
+CAM_INDICES    = [0, 1]
+CAM_POSITIONS  = ['side', 'top']
 
 # Load or init config
 if os.path.exists(CONFIG_PATH):
@@ -46,24 +48,35 @@ else:
 class CameraApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Camera Application (Pro Mode)')
+        self.setWindowTitle('Camera Application  ')
         self.setWindowIcon(QIcon.fromTheme('camera'))
 
+        # cam_name = 'side'
+        cam_num = int(input('Use top Camera? (0/1): '))
+        cam_name = CAM_POSITIONS[cam_num]
         # Camera connect with retries
         self.camera = None
-        for _ in range(5):
-            cam = Camera(0, cv2.CAP_DSHOW, cam_name='side')
+        for _ in range(7):
+            # try:
+            cam = Camera(SOURCE=cam_num, CAP_API=cv2.CAP_MSMF, cam_name=cam_name)# CAP_MSMF
             if cam.isOpened():
                 cam.realtime()
                 self.camera = cam
                 break
             cam.release()
             time.sleep(1)
+            # usb = cam.get_usb()
+            
+            # except Exception as e:
+            #     print(f'Error opening camera: {e}')
+            #     print('Retrying to open camera...')
+
         if not self.camera or not self.camera.isOpened():
-            QMessageBox.critical(self, 'Error', 'Cannot open camera after 5 tries')
+            print('Cannot open camera after 5 tries, exiting')
+            # QMessageBox.critical(self, 'Error', 'Cannot open camera after 5 tries')
             sys.exit(1)
  
-        cam.load_calibration()
+        # cam.load_calibration()
         self.cam = cam
 
         # # Set default properties
@@ -89,7 +102,7 @@ class CameraApp(QMainWindow):
 
 
     def set_camera_props(self):
-        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
+        self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
         self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1200)
         self.camera.set(cv2.CAP_PROP_FPS, 90)
         self.camera.set(cv2.CAP_PROP_EXPOSURE, float(CONFIG['exposure']))
@@ -200,7 +213,7 @@ class CameraApp(QMainWindow):
         return QPixmap.fromImage(q).scaled(label.width(),label.height(),Qt.KeepAspectRatio)
 
     def take_photo(self):
-        ret,frm=self.camera.read();
+        ret,frm=self.camera.read()
         if not ret: return
         p=self.process_frame(frm)
         ts=datetime.now().strftime('%Y%m%d_%H%M%S')

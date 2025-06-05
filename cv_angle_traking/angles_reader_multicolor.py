@@ -27,9 +27,9 @@ class AngleTracker(object): # TODO
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
 
         if self.color_mode ==0: # Lab
-            self.maker_tolerance_L = [110,100,100,10]#int(0.08 * 255)
-            self.maker_tolerance_a = [15,40,20,10]# int(0.09 * 255)# red -> green
-            self.maker_tolerance_b = [15,20,30,10]# int(0.09 * 255)# Yellow -> Blue
+            self.maker_tolerance_L = [30,30,40,10]#int(0.08 * 255)
+            self.maker_tolerance_a = [15,15,20,10]# int(0.09 * 255)# red -> green
+            self.maker_tolerance_b = [15,15,30,10]# int(0.09 * 255)# Yellow -> Blue
         else : # RGB
             self.maker_tolerance_L = int(0.5 * 255)
             self.maker_tolerance_a = int(0.2 * 255)# red -> green

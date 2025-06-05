@@ -2,7 +2,7 @@
     "method": "Flat-field",
     "flat_image": "C:/Users/SAWALAB/Desktop/projects/SMA_FT232/IMG/silver_card.jpg",
     "morph_kernel": 15,
-    "exposure": -5,
-    "gain": 0,
+    "exposure": -9,
+    "gain": 54,
     "white_balance": 4000
 }
