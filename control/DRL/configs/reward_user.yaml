@@ -1,0 +1,5 @@
+# ユーザー提案の報酬関数設定
+threshold: 0.1               # CNN 出力ノルムの閾値
+lambda_time: 0.5             # exp(-λ t) の λ
+success_reward: 1.0
+safety_penalty: -1.0

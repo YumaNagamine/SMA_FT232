@@ -1,5 +1,5 @@
 import os
-os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
+# os.add_dll_directory(r"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.5\bin")
 import cv2
 import pandas as pd
 
@@ -42,7 +42,7 @@ def extract_and_save_frames(video_path: str, csv_path: str):
 
 if __name__ == "__main__":
 
-    corename = 'FDS'
+    corename = 'test_side'
 
     video_path = './sc01/' + corename + '/' + corename + '_mask.mp4'
     csv_path   = './sc01/' + corename + '/annotations.csv'

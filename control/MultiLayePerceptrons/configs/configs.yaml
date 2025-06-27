@@ -1,0 +1,13 @@
+dataset:
+  name:
+  root:
+  batch size:
+  num_workers: 
+
+model:
+  name: "AnglesInput"
+  pretrained: true
+  num_classes: 2
+
+training:
+  optimizer:

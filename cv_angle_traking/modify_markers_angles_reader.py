@@ -25,6 +25,7 @@ class ModifiedMarkers(AngleTracker):
         return rate * vector
     
     def rotate_vector(self, vector, theta): #To rotate vector by theta(rad). vector must be [a,b], dont give two dots.
+        # theta; radian
         rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
         new_vec = rotation_matrix @ vector
         new_vec = np.array(new_vec, dtype=int)
@@ -641,7 +642,8 @@ class ModifiedMarkers(AngleTracker):
         print("measure:", type(measure))
         print(type(np_data), np_data)
         # saveFigure(np_data, f"{self.video_name.split('.')[0]}_extracted.csv", ["angle_2","angle_1","angle_0","frame"], show_img=False, figure_mode='Single')    
-    
+
+
 # --------------↓　for single joint tracking　↓----------------
 
     def extract_single_angle(self, frame, basepoint): # topview
@@ -757,7 +759,22 @@ class ModifiedMarkers(AngleTracker):
         marker_rangers = [[lowerlimit, upperlimit]]
         self.fingertip_range = marker_rangers
 
+# --------------↓　for predefined color range joint tracking　↓----------------
 
+    def main_no_acquiringcolors(self, frame_side, frame_top, color_range_side=[], color_range_top=[], is_first_frame=False): # whole process from img to angles with predefined ranges of colors
+        # side color ranges; [[[L_min, L_max],[a_min, a_max],[b_min, b_max]], <- 1st marker
+        #                       ...]
+        # top color ranges; [[Lab min], [Lab Max]]
+        frame_to_segment = cv2.cvtColor(frame, cv2.COLOR_RGB2Lab)
+
+        if is_first_frame: # process only at first frame; recieving color ranges, discliminating markers
+            self.marker_rangers = color_range_side
+            self.fingertip_range = color_range_top
+            
+
+
+
+    
 if __name__ == '__main__':
     import os,sys,json
     print(os.getcwd())

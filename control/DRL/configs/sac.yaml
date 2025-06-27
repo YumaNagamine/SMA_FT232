@@ -1,0 +1,14 @@
+# SAC アルゴリズムの基本ハイパーパラメータ
+policy_lr: 0.0003
+qf_lr: 0.0003
+alpha_lr: 0.0003
+
+gamma: 0.99          # 割引率
+tau: 0.005           # ターゲットネットワークのソフトアップデート係数
+buffer_size: 1000000
+batch_size: 128
+
+train_steps: 1000000
+start_steps: 10000   # ランダムアクションでの初期ステップ数
+update_after: 1000
+update_every: 50

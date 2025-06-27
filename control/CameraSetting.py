@@ -1,4 +1,3 @@
-
 # This file is for shortening camera setting process created by Nagamine on March 5th
 import cv2
 from cv2 import VideoCapture

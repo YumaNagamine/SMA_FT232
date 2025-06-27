@@ -6,3 +6,5 @@ sc01/
 __pycache__
 .pt
 /checkpoints/*.pt
+control/DRL/data/
+control/DRL/models/*.pt

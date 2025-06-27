@@ -1,0 +1,7 @@
+# 改良版報酬関数設定
+distance_coeff: 1.0          # ステップごとの距離ペナルティ係数
+time_penalty: 0.01           # 毎ステップの時間ペナルティ
+success_bonus: 1.0
+lambda_time: 0.5             # 成功ボーナスの減衰係数
+epsilon: 0.1                 # 成功判定の距離閾値
+safety_penalty: -1.0
