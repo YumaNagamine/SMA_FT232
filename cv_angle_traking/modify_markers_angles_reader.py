@@ -210,7 +210,6 @@ class ModifiedMarkers(AngleTracker):
                             #self.palm_marker_positionとself.media_distalisをクリックで指定した位置とするコードの設定が必要 -> done
 
                     if modify:
-                        # このへんにマーカー位置を修正するコードを書く -> done
                         # 修正前のマーカーの位置と修正後のマーカーの位置両方を保存する
                         if color_num  == 0:
                             modified_distal = point_per_mask[0]

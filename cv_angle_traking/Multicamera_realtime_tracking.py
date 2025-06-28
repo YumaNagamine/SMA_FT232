@@ -41,6 +41,9 @@ class AngleTracking:
         point0 = np.array(point0)
         point1 = np.array(point1)
         return np.linalg.norm(point0-point1)
+    @staticmethod
+    def calculate_vactor(point1, point2): # vector point1 -> point2
+        return np.array(point2) - np.array(point1)
 
     def _add_text_to_frame(self, frame, text, position=(30, 30), font=cv2.FONT_HERSHEY_DUPLEX, font_scale=0.2, color=(0, 255, 0), thickness=2):
         # Add text into video frame
@@ -109,10 +112,9 @@ class AngleTracking:
         processed_markerset_per_frame = []
 
         line_pad = 5
-        direction_vector_0_1 = None
         
         # Process each mask
-        for mask_id, mask, thr, direction_vector in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size, self.color, [direction_vector_0_1, None, None, None]):
+        for mask_id, mask, thr, color, direction_vector in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size, self.colors):
             try:
                 mask = np.uint8(mask) # True/False -> 0/1
                 num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
@@ -134,26 +136,111 @@ class AngleTracking:
 
                     centroid_x, centroid_y = int(left + width / 2), int(top + height / 2)
                     point_per_mask.append((centroid_x, centroid_y))
+
+                    # Discriminate the markers whether distal or proximal
                     if mask_id == 0 and idx == 1: # Distalis bone 指先の骨
                         point_per_mask = self._marker_discriminator_distalis(point_per_mask)
                     elif (mask_id == 1 and idx == 1) or (mask_id == 2 and idx == 1):
+                        point_per_mask = self._marker_discriminator(point_per_mask)
                         self.media_distalis = point_per_mask[0]
                     elif mask_id == 3 and idx == 0:
                         self.palm_marker_position = np.array([centroid_x, centroid_y])
 
                 #---- markerの位置修正-------
                 if mask_id == 0:
-                    processed_distalis = 
+                    processed_distal = point_per_mask[0]
+                    processed_point_per_mask.append(tuple(processed_distal))
+                    processed_proximal = point_per_mask[1]
+                    processed_point_per_mask.append(tuple(processed_proximal))
+
                 elif mask_id == 1:
+                    marker_vec = self.calculate_vactor(point_per_mask[0], point_per_mask[1])
+                    rotated_vector = self._rotate_scaling_vector(marker_vec, self.theta_side)
+                    processed_distal = np.array(point_per_mask[0])
+                    processed_proximal = processed_distal + rotated_vector
+                    processed_point_per_mask.append(tuple(processed_distal))
+                    processed_point_per_mask.append(tuple(processed_proximal))
                 elif mask_id == 2:
+                    processed_distal, processed_proximal = self._translation_markers(point_per_mask, self.distance)
+                    processed_point_per_mask.append(processed_distal)
+                    processed_point_per_mask.append(processed_proximal)
+
                 elif mask_id == 3:
+                    processed_point_per_mask = point_per_mask.copy()
+                    processed_point_per_mask.append((point_per_mask[0][0] + 100, point_per_mask[0][1]))
                 #---- markerの位置修正終了-------
+
+                # Visualize circles on markers
+                for idx, point in enumerate(point_per_mask):
+                    cv2.circle(frame, (point[0], point[1]), radius = idx * 10, color=[255,255,255], thickness=2)
+                for idx, point in enumerate(point_per_mask):
+                    cv2.circle(frame, (point[0], point[1]), radius = (idx + 1) * 10, color=[255,255,255], thickness=2)
+
+                # Visualize circles and line on processed points
+                for idx, point in enumerate(processed_point_per_mask):
+                    cv2.circle(frame, (point[0], point[1]), radius = idx * 10, color=color, thickness=2)
+                for idx, point in enumerate(processed_point_per_mask):
+                    cv2.circle(frame, (point[0], point[1]), radius = (idx + 1) * 10, color=color, thickness=2)
+                
+                direction_vector = self.calculate_vactor(processed_point_per_mask[0], processed_point_per_mask[1])
+                point0 = np.array(processed_point_per_mask[0]) - line_pad * direction_vector
+                point1 = np.array(processed_point_per_mask[1]) + line_pad * direction_vector
+                cv2.line(frame, (point0, point1), color, 3)
+
+
+                markerset_per_frame.append(point_per_mask)
+                processed_markerset_per_frame.append(processed_point_per_mask)
+
             except:
-                pass
+                print(f'unknown error ocurres in extract_angle_side at mask_id; {mask_id}')
+                continue
+            
+            # Calculate angles based on extracted marker points
+            self._estimate_joint(processed_markerset_per_frame)
+            cv2.circle(frame, center=self.fingertip, radius=10, color = [0,255,0], thickness=-1)
+            cv2.circle(frame, center=self.DIP, radius=10, color = [0,255,0], thickness=-1)
+            cv2.circle(frame, center=self.PIP, radius=10, color = [0,255,0], thickness=-1)
+            cv2.circle(frame, center=self.MCP, radius=10, color = [0,255,0], thickness=-1)
+
+            try:
+                angle_0 = self._calculate_angle_side(processed_markerset_per_frame[0], processed_markerset_per_frame[1])
+                angle_0 = int(10*angle_0) / 10
+            except IndexError:
+                angle_0 = []
+            try:
+                angle_1 = self._calculate_angle_side(processed_markerset_per_frame[1], processed_markerset_per_frame[2])
+                angle_1 = int(10*angle_1) / 10
+            except IndexError:
+                angle_1 = []
+            try:
+                angle_2 = self._calculate_angle_side(processed_markerset_per_frame[2], processed_markerset_per_frame[3])
+                angle_2 = int(10*angle_2) / 10
+            except IndexError:
+                angle_2 = []
+
+            _text_pos_x = 100
+            frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
+            frame = self.add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
+            frame = self.add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+            
+            return frame, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame
 
     def _extract_angle_top(self, frame):
         # 指先は二点の中点をとる
         pass
+
+    def _estimate_joint(self, processed_markerset_per_frame, shifters=[15,110]):
+        vec = np.array(processed_markerset_per_frame)
+        direction_vector_0 = vec[1][0] - vec[1][1] #近位から遠位へのベクトル
+        direction_vector_1 = vec[2][0] - vec[2][1]
+        self.fingertip = vec[0][0]
+        self.DIP = vec[1][0] + (shifters[0]/np.linalg.norm(direction_vector_0))*direction_vector_0
+        self.PIP = vec[2][0] + (shifters[1]/np.linalg.norm(direction_vector_1))*direction_vector_1
+        self.DIP = self.DIP.astype(np.int32)
+        self.PIP = self.PIP.astype(np.int32)
+        self.MCP = (vec[3][0][0]-130, vec[3][0][1])
+
+        # return self.fingertip, self.DIP, self.PIP, self.MCP 
 
     def _calculate_angle_side(self, distalis_line: list, # each line; [(distalis marker), (proximal marker)]
                         proximal_line: list
@@ -180,11 +267,8 @@ class AngleTracking:
     def _calculate_angle_top(self, frame_top) -> np.float32:
 
         pass
-
-    def _extract_angle(self, frame_side, frame_top) -> tuple:
-        pass
          
-    def _video_saver(self, directory_to_save: str , raw_frame_side, raw_frame_top, extracted_frame_side, extracted_frame_top):
+    def _video_saver(self, raw_frame_side, raw_frame_top, extracted_frame_side, extracted_frame_top):
         self.raw_frames_side.append(raw_frame_side)
         self.raw_frames_top.append(raw_frame_top)
         self.extracted_frames_side.append(extracted_frame_side)
@@ -214,9 +298,23 @@ class AngleTracking:
         out.release()
     
     
-    def _processing_first_frame():
-        pass
-    def processing_frame(frame_side: np.ndarray, frame_top: np.ndarray, is_first_frame=False) ->  tuple: # Execute this method for each frame
-        pass
+    def _processing_first_sideframe(self, frame):
+        # how to distinguish whether markers is proximal or distal
+        return frame, 
+
+    def processing_frame(self, frame_side: np.ndarray, frame_top: np.ndarray, is_first_frame=False) ->  tuple: 
+        # Execute this method for each frame
+        raw_frame_side = copy.deepcopy(frame_side)
+        raw_frame_top = copy.deepcopy(frame_top)
+        
+        if is_first_frame:
+            self._processing_first_sideframe()
+        else:
+            frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame = self._extract_angle_side(frame_side)
+        
+        measure = [angle_0, angle_1, angle_2, angle_top,  ]
+        self._data_saver(measure)
+        self._video_saver(raw_frame_side, raw_frame_top, frame_side, frame_top)
+        return 
 if __name__ == "__main__":
     pass
