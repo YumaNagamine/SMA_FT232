@@ -28,6 +28,11 @@ class AngleTracking:
         self.extracted_frames_top = []
         self.measure = []
         # preset params
+        self.marker_rangers = [[[103, 163],[132, 162],[64, 94]], 
+                                [[86, 146],[160, 190], [46, 76]], 
+                                [[139, 219], [138, 178], [146, 206]],
+                                [[214, 234],[68, 88],[112, 132]]]
+        self.fingertip_range = [[103, 132, 64], [163, 162, 94]]
         self.threshold_area_size = [200, 50, 50, 10]
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
 
@@ -225,9 +230,45 @@ class AngleTracking:
             
             return frame, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame
 
-    def _extract_angle_top(self, frame):
+    def _extract_angle_top(self, frame, MCP_point:np.ndarray):
         # 指先は二点の中点をとる
-        pass
+        mask = self._segment_marker_by_color(frame, side=False)
+        markerpos_per_frame = []
+        fingertip_per_frame = []
+        line_pad = 5
+        threshold = 100
+        try:
+            mask = np.uint8(mask)
+            self.binary_mask = mask * 255
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
+            filtered_regions = [index for index, stat in enumerate(stats[1:]) if stat[4] > threshold]
+            if len(filtered_regions) <= 1: 
+                markerpos_per_frame.append((-1,-1))
+                fingertip_per_frame.append((-1,-1))
+                return frame, [], markerpos_per_frame, fingertip_per_frame
+
+            # extract only 2 x ball-joint
+            # max_area = 0
+            areas = []
+            for idx, index in enumerate(filtered_regions):
+                left, top, width, height, area = stats[index+1]
+                # if area > max_area:
+                #     area_max_index = index
+                #     max_area = area
+                #     ball_joint_stats = {'left': left, 'top': top, 'width': width, 'height': height, 'area': area}
+                # centroid_x, centroid_y = int(ball_joint_stats['left']+ball_joint_stats['width']/2), int(ball_joint_stats['top']+ball_joint_stats['height']/2)
+                areas.append([left, top, width, height, area])
+            areas.sort(key=lambda x: x[4], reverse=True)
+            temp = [0,0]
+            for st in areas[:2]:
+                centroid_x, centroid_y = int(st[0]+st[2]/2), int(st[1]+st[3]/2)
+                markerpos_per_frame.append((centroid_x, centroid_y))
+                cv2.circle(frame, (centroid_x, centroid_y), radius=10, color=[255,255,255], thickness=2)
+                temp[0] += centroid_x
+                temp[1] += centroid_y
+            fingertip_pos = [int(temp[0]/2), int(temp[1]/2)]
+            fingertip_per_frame.append(fingertip_pos)
+
 
     def _estimate_joint(self, processed_markerset_per_frame, shifters=[15,110]):
         vec = np.array(processed_markerset_per_frame)
@@ -238,7 +279,7 @@ class AngleTracking:
         self.PIP = vec[2][0] + (shifters[1]/np.linalg.norm(direction_vector_1))*direction_vector_1
         self.DIP = self.DIP.astype(np.int32)
         self.PIP = self.PIP.astype(np.int32)
-        self.MCP = (vec[3][0][0]-130, vec[3][0][1])
+        self.MCP = (vec[3][0][0] - 130, vec[3][0][1])
 
         # return self.fingertip, self.DIP, self.PIP, self.MCP 
 
@@ -302,7 +343,7 @@ class AngleTracking:
         # how to distinguish whether markers is proximal or distal
         return frame, 
 
-    def processing_frame(self, frame_side: np.ndarray, frame_top: np.ndarray, is_first_frame=False) ->  tuple: 
+    def processing_frame(self, frame_side: np.ndarray, frame_top: np.ndarray, is_first_frame=False, duty_ratios = None) ->  tuple: 
         # Execute this method for each frame
         raw_frame_side = copy.deepcopy(frame_side)
         raw_frame_top = copy.deepcopy(frame_top)
@@ -313,6 +354,10 @@ class AngleTracking:
             frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame = self._extract_angle_side(frame_side)
         
         measure = [angle_0, angle_1, angle_2, angle_top,  ]
+
+        if not duty_ratios == None:
+            measure.append(duty_ratios)
+
         self._data_saver(measure)
         self._video_saver(raw_frame_side, raw_frame_top, frame_side, frame_top)
         return 
