@@ -224,13 +224,13 @@ class AngleTracking:
                 angle_2 = []
 
             _text_pos_x = 100
-            frame = self.add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
-            frame = self.add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
-            frame = self.add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+            frame = self._add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
+            frame = self._add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
+            frame = self._add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
             
             return frame, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame
 
-    def _extract_angle_top(self, frame, MCP_point:np.ndarray):
+    def _extract_angle_top(self, frame, MCP_point:list):
         # 指先は二点の中点をとる
         mask = self._segment_marker_by_color(frame, side=False)
         markerpos_per_frame = []
@@ -269,6 +269,23 @@ class AngleTracking:
             fingertip_pos = [int(temp[0]/2), int(temp[1]/2)]
             fingertip_per_frame.append(fingertip_pos)
 
+            angle = self._calculate_angle_top(fingertip_per_frame, MCP_point)
+            angle = int(angle*10)/10
+
+            for point in markerpos_per_frame:
+                cv2.circle(frame, (point[0], point[1]), radius=10, color = (255,255,255), thickness=-1)
+            cv2.circle(frame, (fingertip_pos[0][1],fingertip_pos[0][1]), radius=10, color = (255,255,255), thickness=-1)
+            cv2.circle(frame, MCP_point, radius=10, color = (255,255,255), thickness=-1)
+            cv2.line(frame, MCP_point, fingertip_pos, color=(0,255,0), thickness=3)
+            cv2.line(frame, MCP_point, (MCP_point[0]-500, MCP_point), color=(0,255,0), thickness=3)
+
+            frame = self._add_text_to_frame(frame, "ANGLE: {}".format(angle), position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
+                     
+
+            return  frame, angle, markerpos_per_frame, fingertip_per_frame
+        except:
+            print("Unknown error occurres in extract_angle_top\n")
+            return
 
     def _estimate_joint(self, processed_markerset_per_frame, shifters=[15,110]):
         vec = np.array(processed_markerset_per_frame)
@@ -305,9 +322,24 @@ class AngleTracking:
         except:
             return []
 
-    def _calculate_angle_top(self, frame_top) -> np.float32:
+    def _calculate_angle_top(self, fingertip_pos:list, MCP_pos:list) -> np.float32:
+        try:
+            np_fingertip_pos = np.array(fingertip_pos)
+            np_MCP_pos = np.array(MCP_pos)
+            horizontal_point = np.array([MCP_pos[0]-500, MCP_pos[1]])
+            horizontal_line = horizontal_point - np_MCP_pos
+            finger_line = np_fingertip_pos - np_MCP_pos
+            dot_product = np.dot(horizontal_line, finger_line)
+            cross_product = np.cross(horizontal_line, finger_line)
+            angle_degree = np.degrees(np.arctan2(cross_product, dot_product))
+            if angle_degree >= 90:
+                angle_degree = -180 + angle_degree
+            elif angle_degree <= -90:
+                angle_degree = 180 + angle_degree
+            return angle_degree
 
-        pass
+        except:
+            return []
          
     def _video_saver(self, raw_frame_side, raw_frame_top, extracted_frame_side, extracted_frame_top):
         self.raw_frames_side.append(raw_frame_side)
