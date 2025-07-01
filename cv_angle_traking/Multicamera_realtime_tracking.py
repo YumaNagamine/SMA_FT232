@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import copy, time
 from datetime import datetime
+from control.CameraSetting import Camera
+from control.
 
 # Realtime tracking; Receiving image and extracting angle, 3D positions
 # Save the raw video, video with text and line, and csv file with angles and 3D positions
@@ -16,11 +18,11 @@ NUMBER_OF_MASK = 4
 
 class AngleTracking: 
     def __init__(self):
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M') # e.g. 20250627_1557
-        self.raw_videofile_name_side = timestamp + '_raw_side.mp4'
-        self.raw_videofile_name_top = timestamp + '_raw_top.mp4'
-        self.extracted_videofile_name_side = timestamp + '_extracted_side.mp4'
-        self.extracted_videofile_name_top = timestamp + '_extracted_top.mp4'
+        self.timestamp = datetime.now().strftime('%Y%m%d_%H%M') # e.g. 20250627_1557
+        self.raw_videofile_name_side = self.timestamp + '_raw_side.mp4'
+        self.raw_videofile_name_top = self.timestamp + '_raw_top.mp4'
+        self.extracted_videofile_name_side = self.timestamp + '_extracted_side.mp4'
+        self.extracted_videofile_name_top = self.timestamp + '_extracted_top.mp4'
 
         self.raw_frames_side = []
         self.raw_frames_top = []
@@ -248,8 +250,8 @@ class AngleTracking:
                 return frame, [], markerpos_per_frame, fingertip_per_frame
 
             # extract only 2 x ball-joint
-            # max_area = 0
             areas = []
+            # max_area = 0
             for idx, index in enumerate(filtered_regions):
                 left, top, width, height, area = stats[index+1]
                 # if area > max_area:
@@ -349,33 +351,53 @@ class AngleTracking:
 
     def _data_saver(self, data_to_save: list):
         self.measure.append(data_to_save)
-        pass
+
+    def data_saver_finalize(self, dir_to_save:str ,fps:int, is_dutyratio=True):
+        if is_dutyratio: columns = ['frame_id', 'angle0', 'angle1', 'angle2', 'angle_top',
+                                    'duty_ratio0', 'duty_ratio1', 'duty_ratio2', 'duty_ratio3','duty_ratio4','duty_ratio5' ] 
+
+        else: columns = ['frame_id', 'angle0', 'angle1', 'angle2', 'angle_top']
+        # columns = ['frame_id', 'angle0', 'angle1', 'angle2', 'angle_top', 'fingertip', 'DIP', 'PIP', 'MCP'] 
+        df = pd.DataFrame(data=self.measure, columns=columns)
+        df['time'] = df['frame_id']/fps
+        filename = os.path.join(dir_to_save, f"{self.timestamp}.csv")
+        df.to_csv(filename, index=False)
+        print(f'csv file saved at {dir_to_save} as {filename}')
+
     def video_saver_finalize(self, directory_to_save: str, fps: int, resolution: tuple): # resolution; (width, height)
         fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
         # fourcc = cv2.VideoWriter_fourcc(*'x264')# # 'avc1' # Mac
 
-        out = cv2.VideoWriter(directory_to_save + self.raw_videofile_name_side, fourcc, fps, resolution)
+        videoname = directory_to_save + self.raw_videofile_name_side
+        out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.raw_frames_side: out.write(frame)
         out.release()
+        print(f'raw side video saved at {directory_to_save} as {videoname}')
 
-        out = cv2.VideoWriter(directory_to_save + self.raw_videofile_name_top, fourcc, fps, resolution)
+        videoname = directory_to_save + self.raw_videofile_name_top
+        out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.raw_frames_top: out.write(frame)
         out.release()
+        print(f'raw top video saved at {directory_to_save} as {videoname}')
 
-        out = cv2.VideoWriter(directory_to_save + self.extracted_frames_side, fourcc, fps, resolution)
+        videoname = directory_to_save + self.extracted_frames_side
+        out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.extracted_frames_side: out.write(frame)
         out.release()
+        print(f'extracted side video saved at {directory_to_save} as {videoname}')
 
-        out = cv2.VideoWriter(directory_to_save + self.extracted_frames_top, fourcc, fps, resolution)
+        videoname = directory_to_save + self.extracted_frames_top
+        out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.extracted_frames_top: out.write(frame)
         out.release()
-    
-    
+        print(f'extracted top video saved at {directory_to_save} as {videoname}')
+
     def _processing_first_sideframe(self, frame):
         # how to distinguish whether markers is proximal or distal
         return frame, 
 
-    def processing_frame(self, frame_side: np.ndarray, frame_top: np.ndarray, is_first_frame=False, duty_ratios = None) ->  tuple: 
+    def processing_frame(self, frame_id, frame_side, frame_top, is_first_frame=False, 
+                         videoviewer=True, duty_ratios = None) ->  tuple: 
         # Execute this method for each frame
         raw_frame_side = copy.deepcopy(frame_side)
         raw_frame_top = copy.deepcopy(frame_top)
@@ -383,15 +405,101 @@ class AngleTracking:
         if is_first_frame:
             self._processing_first_sideframe()
         else:
-            frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame = self._extract_angle_side(frame_side)
-        
-        measure = [angle_0, angle_1, angle_2, angle_top,  ]
+            frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame \
+                = self._extract_angle_side(frame_side)
+            frame_top, angle_top, markerpos_top,fingertip_top_pos \
+                = self._extract_angle_top(frame_top, MCP_point=[800, 600])
+        measure = [frame_id, angle_0, angle_1, angle_2, angle_top]
 
         if not duty_ratios == None:
-            measure.append(duty_ratios)
+            for i in range(len(duty_ratios)): measure.append(duty_ratios[i])
 
         self._data_saver(measure)
         self._video_saver(raw_frame_side, raw_frame_top, frame_side, frame_top)
-        return 
+        if videoviewer:
+            self.videoviewer(raw_frame_side,raw_frame_top, frame_side, frame_top)
+
+
+    @staticmethod
+    def videoviewer(frame1, frame2, frame3, frame4):
+        combined_frame = cv2.hconcat([[frame1, frame2],
+                                       [frame3, frame4]])
+        cv2.imshow('preview', combined_frame)
+
+    def _matching_coord(self, ):
+        pass 
+
 if __name__ == "__main__":
-    pass
+
+    def processing_loop(queue:Queue, tracker):
+        is_first_frame = True
+        frame_id = 0
+        while True:
+            frame_side, frame_top = queue.get()
+            tracker.processing_frame(frame_id, frame_side, frame_top, 
+                                     is_first_frame, videoviewer=True, duty_ratios=None)
+            is_first_frame = False
+            frame_id += 1
+
+    def capture_loop(cap1:cv2.VideoCapture, cap2:cv2.VideoCapture, queue: Queue):
+        while True:
+            ret1, frame1 = cap1.read()
+            ret2, frame2 = cap2.read()
+            if not (ret1 and ret2):
+                print('missed frame!'); time.sleep(0.05); continue
+            if queue.full():
+                try: queue.get_nowait()
+                except: pass
+            queue.put((frame1, frame2))
+
+    # How to use
+    from multiprocessing import Process, Queue
+    import threading
+    tracker = AngleTracking()
+    videosave_dir = "./"
+    sidecamera = Camera(0, cv2.CAP_MSM, 'side')
+    sidecamera.realtime()
+    topcamera = Camera(1, cv2.CAP_MSMF, 'top')
+    topcamera.realtime()
+    # output_level = [0.1,0.1,0.1,0.1,0.1,0.1]
+    # frame_id = 0
+    fps = 90
+
+    frame_queue = Queue(maxsize=100)
+
+    th = threading.Thread(target=capture_loop, args=(sidecamera, topcamera, frame_queue), daemon=True)
+    th.start()
+    p = Process(target=processing_loop, args=(frame_queue, tracker))
+    p.start()
+
+    try:
+        while True: time.sleep(0.5)
+    finally: 
+        sidecamera.release()
+        topcamera.release()
+        tracker.data_saver_finalize(videosave_dir, fps=fps)
+        tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
+
+
+
+
+    # try:
+    #     while True:
+    #         ret1, frame_side = sidecamera.read()
+    #         ret2, frame_top = topcamera.read()
+    #         if not (ret1 and ret2):
+    #             print('missed frame!')
+    #             continue
+    #         tracker.processing_frame(frame_side, frame_top, is_first_frame, None)
+    #         measure = []
+    #         tracker.videoviewer()
+
+
+    #         frame_id += 1
+            
+
+    # finally:
+    #     tracker.data_saver_finalize(videosave_dir, fps=fps)
+    #     tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
+
+

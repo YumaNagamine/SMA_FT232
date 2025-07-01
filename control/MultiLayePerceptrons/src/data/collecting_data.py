@@ -59,22 +59,35 @@ if __name__ == "__main__":
 
 
 if __name__ == "__main__":
+    import cv2
+    from cv_angle_traking.Multicamera_realtime_tracking import AngleTracking 
+
+    # is_angle_based = True
+
     # setting controller
     controller = Interface()
     output = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
     controller.output_levels = np.array(output)
 
-    is_angle_based = True
-    # setting cameras
-    if is_angle_based:
-        pass
-    else:
-        pass
-
-
-    # starting control process
+    tracker = AngleTracking()
+    videosave_dir = "./"
+    sidecamera = Camera(0, cv2.CAP_MSM, 'side')
+    sidecamera.realtime()
+    topcamera = Camera(1, cv2.CAP_MSMF, 'top')
+    topcamera.realtime()
+    output_level = [0.1,0.1,0.1,0.1,0.1,0.1]
     try:
-        controller.apply_DR(retry=False)
-    
+        while True:
+            ret1, frame_side = sidecamera.read()
+            ret2, frame_top = topcamera.read()
+            if not (ret1 and ret2):
+                print('missed frame!')
+                continue
+            controller.apply_DR(retry=False)
+
     finally:
         controller.stop_DR()
+        
+        sidecamera.release()
+        topcamera.release()
+
