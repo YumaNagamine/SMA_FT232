@@ -8,7 +8,6 @@ import pandas as pd
 import copy, time
 from datetime import datetime
 from control.CameraSetting import Camera
-from control.
 
 # Realtime tracking; Receiving image and extracting angle, 3D positions
 # Save the raw video, video with text and line, and csv file with angles and 3D positions
@@ -175,6 +174,7 @@ class AngleTracking:
                 elif mask_id == 3:
                     processed_point_per_mask = point_per_mask.copy()
                     processed_point_per_mask.append((point_per_mask[0][0] + 100, point_per_mask[0][1]))
+
                 #---- markerの位置修正終了-------
 
                 # Visualize circles on markers
@@ -392,9 +392,18 @@ class AngleTracking:
         out.release()
         print(f'extracted top video saved at {directory_to_save} as {videoname}')
 
-    def _processing_first_sideframe(self, frame):
-        # how to distinguish whether markers is proximal or distal
-        return frame, 
+    def _processing_first_sideframe(self, frame_side): # Instead of acquire_marker_color
+        masks = self._segment_marker_by_color(frame_side, side=True)
+        
+        for mask_id, mask, thr in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size):
+            if mask_id == 1 or mask_id == 2: continue 
+            mask = np.uint8(mask)
+            _ , __ , stats, ___ = cv2.connectedComponentsWithStats(mask)
+
+
+        self.media_distalis = 
+        self.palm_marker_position = 
+        return 
 
     def processing_frame(self, frame_id, frame_side, frame_top, is_first_frame=False, 
                          videoviewer=True, duty_ratios = None) ->  tuple: 
@@ -404,11 +413,10 @@ class AngleTracking:
         
         if is_first_frame:
             self._processing_first_sideframe()
-        else:
-            frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame \
-                = self._extract_angle_side(frame_side)
-            frame_top, angle_top, markerpos_top,fingertip_top_pos \
-                = self._extract_angle_top(frame_top, MCP_point=[800, 600])
+        frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame \
+            = self._extract_angle_side(frame_side)
+        frame_top, angle_top, markerpos_top,fingertip_top_pos \
+            = self._extract_angle_top(frame_top, MCP_point=[800, 600])
         measure = [frame_id, angle_0, angle_1, angle_2, angle_top]
 
         if not duty_ratios == None:
