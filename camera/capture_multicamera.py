@@ -28,7 +28,7 @@ cam2.realtime()
 
 win = 'sideview / topview'
 cv2.namedWindow(win, cv2.WINDOW_NORMAL)
-cv2.resizeWindow(win, 1280, 1280)
+cv2.resizeWindow(win, 1280, 600)
 
 record_video = True
 

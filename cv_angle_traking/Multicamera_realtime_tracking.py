@@ -8,6 +8,7 @@ import pandas as pd
 import copy, time
 from datetime import datetime
 from control.CameraSetting import Camera
+import traceback
 
 # Realtime tracking; Receiving image and extracting angle, 3D positions
 # Save the raw video, video with text and line, and csv file with angles and 3D positions
@@ -29,13 +30,15 @@ class AngleTracking:
         self.extracted_frames_top = []
         self.measure = []
         # preset params
-        self.marker_rangers = [[[103, 163],[132, 162],[64, 94]], 
+        self.marker_rangers = [[[50, 180],[122, 162],[60, 100]], 
                                 [[86, 146],[160, 190], [46, 76]], 
                                 [[139, 219], [138, 178], [146, 206]],
                                 [[214, 234],[68, 88],[112, 132]]]
-        self.fingertip_range = [[103, 132, 64], [163, 162, 94]]
+        self.fingertip_range = [[100, 132, 64], [160, 162, 94]]
         self.threshold_area_size = [200, 50, 50, 10]
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
+        cv2.namedWindow('Preview', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Preview', 1600,1200)
 
     def set_params(self, theta_side, theta_top, distance):
         self.theta_side = theta_side
@@ -57,11 +60,12 @@ class AngleTracking:
         cv2.putText(frame_with_text, text, position, font, font_scale, color, thickness)
         return frame_with_text
 
-    def _rotate_scaling_vector(self, vector:np.ndarray, theta: float, rate:float = 1) -> np.ndarray:
-        rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
+    def _rotate_scaling_vector(self, vector:np.ndarray, theta: float, rate:float = 1.0) -> np.ndarray:
+        rotation_matrix = np.array([[np.cos(theta), -np.sin(theta)],
+                                    [np.sin(theta),  np.cos(theta)]])
         rotated_vec = rotation_matrix @ vector
-        norm = np.linalg.norm(rotated_vec)
-        processed_vector = np.array(rate * rotated_vec, dype=int)
+        # norm = np.linalg.norm(rotated_vec)
+        processed_vector = np.array(rate * rotated_vec, dtype=int)
         return processed_vector # 要素がintのベクトル
     
     def _translation_markers(self, markers:list, d:float): # markers should be [distal, proximal], each element: [x(int), y(int)]
@@ -75,7 +79,6 @@ class AngleTracking:
     def _marker_discriminator(self, markers): #中節骨と基節骨のマーカーを区別する　[遠位のマーカー　近位のマーカー]にする
         distance0 = self.calculate_distance(self.palm_marker_position, markers[0])
         distance1 = self.calculate_distance(self.palm_marker_position, markers[1])
-        # print('distances:', distance0, distance1)
         if distance0 > distance1:
             return markers
         elif distance0 < distance1:
@@ -107,8 +110,8 @@ class AngleTracking:
             return masks
         else: # top camera
             # rng = self.fingertip_range[0].T # brown marker
-            lowerb = tuple(int(x) for x in self.fingertip_range[0][0])
-            upperb = tuple(int(x) for x in self.fingertip_range[0][1])
+            lowerb = tuple(int(x) for x in self.fingertip_range[0])
+            upperb = tuple(int(x) for x in self.fingertip_range[1])
             mask = cv2.inRange(cielab, lowerb, upperb)
             return [mask > 0]
         
@@ -120,7 +123,7 @@ class AngleTracking:
         line_pad = 5
         
         # Process each mask
-        for mask_id, mask, thr, color, direction_vector in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size, self.colors):
+        for mask_id, mask, thr, color in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size, self.colors):
             try:
                 mask = np.uint8(mask) # True/False -> 0/1
                 num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
@@ -129,16 +132,18 @@ class AngleTracking:
                 processed_point_per_mask = []
                 
                 # Go to Next mask if missing point
+                # print('length of filtered region', len(filtered_regions), mask_id)
                 if len(filtered_regions) < 2 and (not mask_id==3):
                     point_per_mask.extend([(-1,-1),(-1,-1)])
                     markerset_per_frame.append(point_per_mask)
                     processed_point_per_mask.extend([(-1,-1),(-1,-1)])
                     processed_markerset_per_frame.append(processed_point_per_mask)
+                    print(f"skipped mask id;{mask_id}")
                     continue
 
                 # Process each filtered region in the mask
                 for idx, index  in enumerate(filtered_regions):
-                    left, top, width, height = stats[index + 1]
+                    left, top, width, height, area = stats[index + 1]
 
                     centroid_x, centroid_y = int(left + width / 2), int(top + height / 2)
                     point_per_mask.append((centroid_x, centroid_y))
@@ -166,6 +171,7 @@ class AngleTracking:
                     processed_proximal = processed_distal + rotated_vector
                     processed_point_per_mask.append(tuple(processed_distal))
                     processed_point_per_mask.append(tuple(processed_proximal))
+
                 elif mask_id == 2:
                     processed_distal, processed_proximal = self._translation_markers(point_per_mask, self.distance)
                     processed_point_per_mask.append(processed_distal)
@@ -174,7 +180,6 @@ class AngleTracking:
                 elif mask_id == 3:
                     processed_point_per_mask = point_per_mask.copy()
                     processed_point_per_mask.append((point_per_mask[0][0] + 100, point_per_mask[0][1]))
-
                 #---- markerの位置修正終了-------
 
                 # Visualize circles on markers
@@ -192,45 +197,50 @@ class AngleTracking:
                 direction_vector = self.calculate_vactor(processed_point_per_mask[0], processed_point_per_mask[1])
                 point0 = np.array(processed_point_per_mask[0]) - line_pad * direction_vector
                 point1 = np.array(processed_point_per_mask[1]) + line_pad * direction_vector
-                cv2.line(frame, (point0, point1), color, 3)
-
+                cv2.line(frame, point0, point1, color, 3)
 
                 markerset_per_frame.append(point_per_mask)
                 processed_markerset_per_frame.append(processed_point_per_mask)
 
-            except:
-                print(f'unknown error ocurres in extract_angle_side at mask_id; {mask_id}')
+            # except:
+            #     print(f'unknown error ocurres in extract_angle_side at mask_id; {mask_id}\n')
+            #     continue
+            except Exception as e:
+                import traceback
+                print(f'unknown error ocurres in extract_angle_side at mask_id; {mask_id}\n')
+                traceback.print_exc()
                 continue
-            
-            # Calculate angles based on extracted marker points
-            self._estimate_joint(processed_markerset_per_frame)
-            cv2.circle(frame, center=self.fingertip, radius=10, color = [0,255,0], thickness=-1)
-            cv2.circle(frame, center=self.DIP, radius=10, color = [0,255,0], thickness=-1)
-            cv2.circle(frame, center=self.PIP, radius=10, color = [0,255,0], thickness=-1)
-            cv2.circle(frame, center=self.MCP, radius=10, color = [0,255,0], thickness=-1)
+        # Calculate angles based on extracted marker points
+        self._estimate_joint(processed_markerset_per_frame)
+        cv2.circle(frame, center=self.fingertip, radius=10, color = [0,255,0], thickness=-1)
+        cv2.circle(frame, center=self.DIP, radius=10, color = [0,255,0], thickness=-1)
+        cv2.circle(frame, center=self.PIP, radius=10, color = [0,255,0], thickness=-1)
+        cv2.circle(frame, center=self.MCP, radius=10, color = [0,255,0], thickness=-1)
 
-            try:
-                angle_0 = self._calculate_angle_side(processed_markerset_per_frame[0], processed_markerset_per_frame[1])
-                angle_0 = int(10*angle_0) / 10
-            except IndexError:
-                angle_0 = []
-            try:
-                angle_1 = self._calculate_angle_side(processed_markerset_per_frame[1], processed_markerset_per_frame[2])
-                angle_1 = int(10*angle_1) / 10
-            except IndexError:
-                angle_1 = []
-            try:
-                angle_2 = self._calculate_angle_side(processed_markerset_per_frame[2], processed_markerset_per_frame[3])
-                angle_2 = int(10*angle_2) / 10
-            except IndexError:
-                angle_2 = []
+        try:
+            angle_0 = self._calculate_angle_side(processed_markerset_per_frame[0], processed_markerset_per_frame[1])
+            angle_0 = int(10*angle_0) / 10
+        except Exception as e:
+            traceback.print_exc()
+            angle_0 = []
+        try:
+            angle_1 = self._calculate_angle_side(processed_markerset_per_frame[1], processed_markerset_per_frame[2])
+            angle_1 = int(10*angle_1) / 10
+        except Exception as e:
+            traceback.print_exc()
+            angle_1 = []
+        try:
+            angle_2 = self._calculate_angle_side(processed_markerset_per_frame[2], processed_markerset_per_frame[3])
+            angle_2 = int(10*angle_2) / 10
+        except Exception as e:
+            traceback.print_exc()
+            angle_2 = []
 
-            _text_pos_x = 100
-            frame = self._add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
-            frame = self._add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
-            frame = self._add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
-            
-            return frame, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame
+        _text_pos_x = 100
+        frame = self._add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
+        frame = self._add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
+        frame = self._add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+        return frame, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame
 
     def _extract_angle_top(self, frame, MCP_point:list):
         # 指先は二点の中点をとる
@@ -240,7 +250,7 @@ class AngleTracking:
         line_pad = 5
         threshold = 100
         try:
-            mask = np.uint8(mask)
+            mask = np.uint8(mask[0])
             self.binary_mask = mask * 255
             num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
             filtered_regions = [index for index, stat in enumerate(stats[1:]) if stat[4] > threshold]
@@ -270,24 +280,27 @@ class AngleTracking:
                 temp[1] += centroid_y
             fingertip_pos = [int(temp[0]/2), int(temp[1]/2)]
             fingertip_per_frame.append(fingertip_pos)
-
-            angle = self._calculate_angle_top(fingertip_per_frame, MCP_point)
+            # angle = self._calculate_angle_top(fingertip_per_frame, MCP_point)
+            angle = self._calculate_angle_top(fingertip_pos, MCP_point)
             angle = int(angle*10)/10
 
             for point in markerpos_per_frame:
                 cv2.circle(frame, (point[0], point[1]), radius=10, color = (255,255,255), thickness=-1)
-            cv2.circle(frame, (fingertip_pos[0][1],fingertip_pos[0][1]), radius=10, color = (255,255,255), thickness=-1)
+            cv2.circle(frame, fingertip_pos, radius=10, color = (255,255,255), thickness=-1)
             cv2.circle(frame, MCP_point, radius=10, color = (255,255,255), thickness=-1)
             cv2.line(frame, MCP_point, fingertip_pos, color=(0,255,0), thickness=3)
-            cv2.line(frame, MCP_point, (MCP_point[0]-500, MCP_point), color=(0,255,0), thickness=3)
+            cv2.line(frame, MCP_point, (MCP_point[0]-1200, MCP_point[1]), color=(255,255,0), thickness=3)
 
             frame = self._add_text_to_frame(frame, "ANGLE: {}".format(angle), position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
                      
 
             return  frame, angle, markerpos_per_frame, fingertip_per_frame
-        except:
+        except Exception as e:
+            frame = self._add_text_to_frame(frame, "ANGLE: []", position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
             print("Unknown error occurres in extract_angle_top\n")
-            return
+            import traceback
+            traceback.print_exc()
+            return frame, [], markerpos_per_frame, fingertip_per_frame
 
     def _estimate_joint(self, processed_markerset_per_frame, shifters=[15,110]):
         vec = np.array(processed_markerset_per_frame)
@@ -360,14 +373,15 @@ class AngleTracking:
         # columns = ['frame_id', 'angle0', 'angle1', 'angle2', 'angle_top', 'fingertip', 'DIP', 'PIP', 'MCP'] 
         df = pd.DataFrame(data=self.measure, columns=columns)
         df['time'] = df['frame_id']/fps
-        filename = os.path.join(dir_to_save, f"{self.timestamp}.csv")
+        filename = os.path.join(dir_to_save, self.timestamp + '/',f"{self.timestamp}.csv")
         df.to_csv(filename, index=False)
         print(f'csv file saved at {dir_to_save} as {filename}')
 
     def video_saver_finalize(self, directory_to_save: str, fps: int, resolution: tuple): # resolution; (width, height)
         fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
         # fourcc = cv2.VideoWriter_fourcc(*'x264')# # 'avc1' # Mac
-
+        print('video save directory;', directory_to_save)
+        # directory_to_save += f'/{self.timestamp}'
         videoname = directory_to_save + self.raw_videofile_name_side
         out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.raw_frames_side: out.write(frame)
@@ -380,13 +394,13 @@ class AngleTracking:
         out.release()
         print(f'raw top video saved at {directory_to_save} as {videoname}')
 
-        videoname = directory_to_save + self.extracted_frames_side
+        videoname = directory_to_save + self.extracted_videofile_name_side
         out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.extracted_frames_side: out.write(frame)
         out.release()
         print(f'extracted side video saved at {directory_to_save} as {videoname}')
 
-        videoname = directory_to_save + self.extracted_frames_top
+        videoname = directory_to_save + self.extracted_videofile_name_top
         out = cv2.VideoWriter(videoname, fourcc, fps, resolution)
         for frame in self.extracted_frames_top: out.write(frame)
         out.release()
@@ -394,15 +408,39 @@ class AngleTracking:
 
     def _processing_first_sideframe(self, frame_side): # Instead of acquire_marker_color
         masks = self._segment_marker_by_color(frame_side, side=True)
-        
-        for mask_id, mask, thr in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size):
-            if mask_id == 1 or mask_id == 2: continue 
-            mask = np.uint8(mask)
-            _ , __ , stats, ___ = cv2.connectedComponentsWithStats(mask)
+        markerset_per_frame = []
+        try:
+            for mask_id, mask, thr, color in zip(range(NUMBER_OF_MASK), masks, self.threshold_area_size, self.colors):
+                mask = np.uint8(mask)
+                num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
+                filtered_regions = [i for i, stat in enumerate(stats[1:]) if stat[4] >= thr]
+                point_per_mask = []
+                processed_point_per_mask = []
+                if len(filtered_regions) < 2 and (not mask_id==3):
+                    point_per_mask.extend([(-1,-1),(-1,-1)])
+                    markerset_per_frame.append(point_per_mask)
+                    processed_point_per_mask.extend([(-1,-1),(-1,-1)])
+                    continue
+                for idx, index in enumerate(filtered_regions):
+                    left, top, width, height, area = stats[index + 1]
+
+                    centroid_x, centroid_y = int(left + width / 2), int(top + height / 2)
+                    point_per_mask.append((centroid_x, centroid_y))
+
+                    if mask_id == 1 and idx == 1:
+                        self.media_distalis = point_per_mask[0]
+                    elif mask_id == 3 and idx == 0:
+                        self.palm_marker_position = np.array([centroid_x, centroid_y])
 
 
-        self.media_distalis = 
-        self.palm_marker_position = 
+        except Exception as e:
+            import traceback
+            print('some error occures during processing 1st frame!\n')
+            traceback.print_exc()
+            exit()
+        print(f"initial distalis marker position of media bone;{self.media_distalis}")
+        print(f"initial palm marker position;{self.palm_marker_position}")
+
         return 
 
     def processing_frame(self, frame_id, frame_side, frame_top, is_first_frame=False, 
@@ -412,17 +450,18 @@ class AngleTracking:
         raw_frame_top = copy.deepcopy(frame_top)
         
         if is_first_frame:
-            self._processing_first_sideframe()
+            self._processing_first_sideframe(frame_side)
         frame_side, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame \
             = self._extract_angle_side(frame_side)
         frame_top, angle_top, markerpos_top,fingertip_top_pos \
             = self._extract_angle_top(frame_top, MCP_point=[800, 600])
         measure = [frame_id, angle_0, angle_1, angle_2, angle_top]
 
-        if not duty_ratios == None:
+        if not duty_ratios is None:
             for i in range(len(duty_ratios)): measure.append(duty_ratios[i])
 
         self._data_saver(measure)
+        print('measure; ', measure)
         self._video_saver(raw_frame_side, raw_frame_top, frame_side, frame_top)
         if videoviewer:
             self.videoviewer(raw_frame_side,raw_frame_top, frame_side, frame_top)
@@ -430,84 +469,88 @@ class AngleTracking:
 
     @staticmethod
     def videoviewer(frame1, frame2, frame3, frame4):
-        combined_frame = cv2.hconcat([[frame1, frame2],
-                                       [frame3, frame4]])
-        cv2.imshow('preview', combined_frame)
+        upper = cv2.hconcat([frame1, frame2])
+        lower = cv2.hconcat([frame3, frame4])
+        combined_frame = cv2.vconcat([upper, lower])
+        cv2.imshow('Preview', combined_frame)
+        cv2.waitKey(1)
 
     def _matching_coord(self, ):
         pass 
 
 if __name__ == "__main__":
-
-    def processing_loop(queue:Queue, tracker):
-        is_first_frame = True
-        frame_id = 0
-        while True:
-            frame_side, frame_top = queue.get()
-            tracker.processing_frame(frame_id, frame_side, frame_top, 
-                                     is_first_frame, videoviewer=True, duty_ratios=None)
-            is_first_frame = False
-            frame_id += 1
-
-    def capture_loop(cap1:cv2.VideoCapture, cap2:cv2.VideoCapture, queue: Queue):
-        while True:
-            ret1, frame1 = cap1.read()
-            ret2, frame2 = cap2.read()
-            if not (ret1 and ret2):
-                print('missed frame!'); time.sleep(0.05); continue
-            if queue.full():
-                try: queue.get_nowait()
-                except: pass
-            queue.put((frame1, frame2))
-
-    # How to use
     from multiprocessing import Process, Queue
     import threading
+    
     tracker = AngleTracking()
-    videosave_dir = "./"
-    sidecamera = Camera(0, cv2.CAP_MSM, 'side')
+    tracker.set_params(theta_side=0.55, theta_top = 0, distance=-30)
+
+    # def processing_loop(queue:Queue, tracker: AngleTracking):
+    #     is_first_frame = True
+    #     frame_id = 0
+    #     while True:
+    #         frame_side, frame_top = queue.get()
+    #         tracker.processing_frame(frame_id, frame_side, frame_top, 
+    #                                  is_first_frame, videoviewer=True, duty_ratios=None)
+    #         is_first_frame = False
+    #         frame_id += 1
+
+    # def capture_loop(cap1:cv2.VideoCapture, cap2:cv2.VideoCapture, queue: Queue):
+    #     while True:
+    #         ret1, frame1 = cap1.read()
+    #         ret2, frame2 = cap2.read()
+    #         if not (ret1 and ret2):
+    #             print('missed frame!'); time.sleep(0.05); continue
+    #         if queue.full():
+    #             try: queue.get_nowait()
+    #             except: pass
+    #         queue.put((frame1, frame2))
+
+    # # How to use
+    videosave_dir = "./sc01/multi_angle_tracking/"
+    sidecamera = Camera(0, cv2.CAP_MSMF, 'side')
     sidecamera.realtime()
     topcamera = Camera(1, cv2.CAP_MSMF, 'top')
     topcamera.realtime()
-    # output_level = [0.1,0.1,0.1,0.1,0.1,0.1]
-    # frame_id = 0
+
+    # sidecamera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    # topcamera = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+    
+    # # output_level = [0.1,0.1,0.1,0.1,0.1,0.1]
+    frame_id = 0
     fps = 90
 
-    frame_queue = Queue(maxsize=100)
+    # frame_queue = Queue(maxsize=100)
 
-    th = threading.Thread(target=capture_loop, args=(sidecamera, topcamera, frame_queue), daemon=True)
-    th.start()
-    p = Process(target=processing_loop, args=(frame_queue, tracker))
-    p.start()
-
-    try:
-        while True: time.sleep(0.5)
-    finally: 
-        sidecamera.release()
-        topcamera.release()
-        tracker.data_saver_finalize(videosave_dir, fps=fps)
-        tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
-
-
-
+    # th = threading.Thread(target=capture_loop, args=(sidecamera, topcamera, frame_queue), daemon=True)
+    # th.start()
+    # p = Process(target=processing_loop, args=(frame_queue, tracker))
+    # p.start()
 
     # try:
-    #     while True:
-    #         ret1, frame_side = sidecamera.read()
-    #         ret2, frame_top = topcamera.read()
-    #         if not (ret1 and ret2):
-    #             print('missed frame!')
-    #             continue
-    #         tracker.processing_frame(frame_side, frame_top, is_first_frame, None)
-    #         measure = []
-    #         tracker.videoviewer()
-
-
-    #         frame_id += 1
-            
-
-    # finally:
+    #     while True: time.sleep(0.5)
+    # finally: 
+    #     sidecamera.release()
+    #     topcamera.release()
     #     tracker.data_saver_finalize(videosave_dir, fps=fps)
     #     tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
+    is_first_frame = True
 
+    try:
+        while True:
+            ret1, frame_side = sidecamera.read()
+            ret2, frame_top = topcamera.read()
 
+            if not (ret1 and ret2):
+                print('missed frame!')
+                break
+            tracker.processing_frame(frame_id, frame_side, frame_top, is_first_frame, True, None)
+            is_first_frame = False
+            measure = []
+            frame_id += 1
+
+    finally:
+        videosave_dir += tracker.timestamp
+        videosave_dir += '/'
+        tracker.data_saver_finalize(videosave_dir, fps=fps, is_dutyratio=False)
+        tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
