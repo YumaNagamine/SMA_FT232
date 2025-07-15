@@ -286,7 +286,7 @@ class AngleTracking:
 
             for point in markerpos_per_frame:
                 cv2.circle(frame, (point[0], point[1]), radius=10, color = (255,255,255), thickness=-1)
-            cv2.circle(frame, fingertip_pos, radius=10, color = (255,255,255), thickness=-1)
+            cv2.circle(frame, fingertip_pos, radius=10, color = (0,255,0), thickness=-1)
             cv2.circle(frame, MCP_point, radius=10, color = (255,255,255), thickness=-1)
             cv2.line(frame, MCP_point, fingertip_pos, color=(0,255,0), thickness=3)
             cv2.line(frame, MCP_point, (MCP_point[0]-1200, MCP_point[1]), color=(255,255,0), thickness=3)
@@ -373,12 +373,13 @@ class AngleTracking:
         # columns = ['frame_id', 'angle0', 'angle1', 'angle2', 'angle_top', 'fingertip', 'DIP', 'PIP', 'MCP'] 
         df = pd.DataFrame(data=self.measure, columns=columns)
         df['time'] = df['frame_id']/fps
-        filename = os.path.join(dir_to_save, self.timestamp + '/',f"{self.timestamp}.csv")
-        df.to_csv(filename, index=False)
+        filename = os.path.join(dir_to_save,f"{self.timestamp}.csv")
         print(f'csv file saved at {dir_to_save} as {filename}')
+        df.to_csv(filename, index=False)
 
     def video_saver_finalize(self, directory_to_save: str, fps: int, resolution: tuple): # resolution; (width, height)
-        fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
+        # fourcc = cv2.VideoWriter_fourcc('M','J','P','G') # Win
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Win
         # fourcc = cv2.VideoWriter_fourcc(*'x264')# # 'avc1' # Mac
         print('video save directory;', directory_to_save)
         # directory_to_save += f'/{self.timestamp}'
@@ -548,9 +549,9 @@ if __name__ == "__main__":
             is_first_frame = False
             measure = []
             frame_id += 1
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
     finally:
-        videosave_dir += tracker.timestamp
-        videosave_dir += '/'
         tracker.data_saver_finalize(videosave_dir, fps=fps, is_dutyratio=False)
         tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
