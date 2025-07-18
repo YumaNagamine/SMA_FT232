@@ -193,7 +193,7 @@ class Camera(VideoCapture):
         is_record_video = True
         cam_name = 'AR0234'
         if cam_name == 'AR0234': # Aptina AR0234
-            target_fps = 90
+            target_fps = 60
             resolution = (1920,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
             # width, height = resolution
             # # Usage example:
@@ -203,7 +203,8 @@ class Camera(VideoCapture):
             if self.cam_name == 'side':
                 manual_settings = {
                     cv2.CAP_PROP_AUTO_EXPOSURE:       .25,#0.25,   # DirectShow: 0.25=manual, 0.75=auto
-                    cv2.CAP_PROP_EXPOSURE:            -10 if is_lighting else -3,    # your desired exposure
+                    # cv2.CAP_PROP_EXPOSURE:            -10 if is_lighting else -3,    # your desired exposure
+                    cv2.CAP_PROP_EXPOSURE:            -8 if is_lighting else -3,    # your desired exposure
                     cv2.CAP_PROP_GAIN:                0,      # your desired gain
 
                     cv2.CAP_PROP_FRAME_WIDTH:          resolution[0],
@@ -236,7 +237,8 @@ class Camera(VideoCapture):
                     cv2.CAP_PROP_FRAME_HEIGHT:         resolution[1],
 
                     cv2.CAP_PROP_AUTO_EXPOSURE:       .25,#0.25,   # DirectShow: 0.25=manual, 0.75=auto
-                    cv2.CAP_PROP_EXPOSURE:            -9 if is_lighting else -3,    # your desired exposure
+                    # cv2.CAP_PROP_EXPOSURE:            -9 if is_lighting else -3,    # your desired exposure
+                    cv2.CAP_PROP_EXPOSURE:            -7 if is_lighting else -3,    # your desired exposure
                     cv2.CAP_PROP_GAIN:                0,      # your desired gain
 
                     cv2.CAP_PROP_AUTO_WB:             0,      # disable auto white balance

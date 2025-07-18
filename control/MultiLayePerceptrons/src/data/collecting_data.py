@@ -2,7 +2,9 @@
 
 from SMA_finger.SMA_finger_MP import *
 from control.CameraSetting import Camera
-from cv_angle_traking.modify_markers_angles_reader import ModifiedMarkers
+from cv_angle_traking.Multicamera_realtime_tracking import AngleTracking
+import numpy as np
+import cv2
 
 OUTPUT_NUMBER = 6
 
@@ -46,48 +48,50 @@ class Interface:
         for i in range(len(self.output_levels)): self.output_levels[i] = 0
         self.apply_DR(retry=False)
 
-if __name__ == "__main__":
-    controller = Interface()
-    for i in range(len(controller.output_levels)):
-        controller.output_levels[i] = 0.1
-    controller.apply_DR(retry=False)
-    time.sleep(5.0)
-    controller.stop_DR()
-
-
-
-
 
 if __name__ == "__main__":
-    import cv2
-    from cv_angle_traking.Multicamera_realtime_tracking import AngleTracking 
-
-    # is_angle_based = True
-
-    # setting controller
-    controller = Interface()
-    output = [0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
-    controller.output_levels = np.array(output)
 
     tracker = AngleTracking()
-    videosave_dir = "./"
-    sidecamera = Camera(0, cv2.CAP_MSM, 'side')
+    tracker.set_params(theta_side=0.55, theta_top = 0, distance=-30)
+    videosave_dir = "./sc01/multi_angle_tracking"
+    sidecamera = Camera(0, cv2.CAP_MSMF, 'side')
     sidecamera.realtime()
     topcamera = Camera(1, cv2.CAP_MSMF, 'top')
     topcamera.realtime()
-    output_level = [0.1,0.1,0.1,0.1,0.1,0.1]
+
+    frame_id = 0
+ 
+    is_first_frame = True
+    time.sleep(2) # wait for camera to be ready
+    controller = Interface()
+    start = time.time()
+
     try:
         while True:
             ret1, frame_side = sidecamera.read()
             ret2, frame_top = topcamera.read()
+
             if not (ret1 and ret2):
                 print('missed frame!')
-                continue
-            controller.apply_DR(retry=False)
-
+                break
+            output_level = [0.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+            # output_level = np.array(output_level)
+            tracker.processing_frame(frame_id, frame_side, frame_top, is_first_frame, True, output_level)
+            controller.apply_DR(retry=True)
+    
+            is_first_frame = False
+            frame_id += 1
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            end = time.time()
     finally:
         controller.stop_DR()
-        
+        effective_fps = frame_id / int(end - start)
+        print(f'processing time; {int(end-start)}, fps: {effective_fps}')
+        tracker.data_saver_finalize(videosave_dir, fps=effective_fps, is_dutyratio=True)
+        tracker.video_saver_finalize(videosave_dir, fps=effective_fps, resolution=(1920,1200))
         sidecamera.release()
         topcamera.release()
+        cv2.destroyAllWindows()
+
 

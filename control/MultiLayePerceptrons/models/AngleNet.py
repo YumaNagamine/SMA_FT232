@@ -7,7 +7,7 @@ import numpy as np
 # Angle-based control
 
 class AngleNet(torch.nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, hidden_layer_size: np.ndarray):
+    def __init__(self, input_dim: int, output_dim: int, hidden_layer_size: list):
         super().__init__()
         self.net1 = torch.nn.Linear(input_dim,hidden_layer_size[0])
         self.net2 = torch.nn.Linear(hidden_layer_size[0], hidden_layer_size[1])

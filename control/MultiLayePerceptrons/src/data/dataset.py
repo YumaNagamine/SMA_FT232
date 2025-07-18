@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 
 # angle_based
-class AngleDataset(Dataset):
+class AngleDataset(Dataset): # Load initial angles, final angles, and dutyratios from summary.csv
     def __init__(self, root_dir: str, split: str, transform=None):
         super().__init__()
         self.root_dir = root_dir
@@ -56,6 +56,10 @@ class AngleDataset(Dataset):
         if self.transform:
             x, y = self.transform(x, y)
         return x, y
+    
+class AngleHistoryDataset(Dataset):
+    def __init__(self):
+        super().__init__()
 
 # image_based
 class ImageDataset(Dataset):
