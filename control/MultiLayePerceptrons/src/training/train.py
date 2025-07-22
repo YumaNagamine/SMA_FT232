@@ -10,6 +10,7 @@ from utils.metrics import mse_loss
 def main():
     with open("./MultiLayerPerceptrons/configs/configs.yaml", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
+    csv_file_path = './sc01/multi_angle_tracking/FDP_training_data.csv'
     train_ds = AngleDataset(
         params
     )

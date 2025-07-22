@@ -8,6 +8,10 @@ model:
   name: "AnglesInput"
   pretrained: true
   num_classes: 2
+  input_dim: 8
+  output_dim: 6
+  
+
 
 training:
   optimizer:

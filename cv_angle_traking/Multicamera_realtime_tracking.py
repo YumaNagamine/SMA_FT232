@@ -23,7 +23,7 @@ class AngleTracking:
         self.raw_videofile_name_top = self.timestamp + '_raw_top.mp4'
         self.extracted_videofile_name_side = self.timestamp + '_extracted_side.mp4'
         self.extracted_videofile_name_top = self.timestamp + '_extracted_top.mp4'
-
+        
         self.raw_frames_side = []
         self.raw_frames_top = []
         self.extracted_frames_side = []
@@ -36,11 +36,11 @@ class AngleTracking:
         #                         [[139, 219], [138, 178], [146, 206]], # Blue
         #                         [[214, 234],[68, 88],[112, 132]]] # Yellow
         # Exposure -8
-        self.marker_rangers =  [[[85, 125],[130, 155], [130, 150]], # Brown
+        self.marker_rangers =  [[[75, 125],[130, 155], [130, 155]], # Brown
                                 [[90, 130],[160, 220], [130, 190]], # Red
                                 [[60, 120],[120, 180], [50, 100]], # Blue
                                 [[160, 200],[110, 140],[180, 220]]] # Yellow
-        self.fingertip_range = [[70, 140, 140], [130, 170, 160]]
+        self.fingertip_range = [[140, 140, 140], [170, 180, 165]]
         self.threshold_area_size = [300, 50, 50, 10]
         self.colors = [(255,0,0), (127,0,255), (0,127,0),(0,127,255)]
         cv2.namedWindow('Preview', cv2.WINDOW_NORMAL)
@@ -530,20 +530,6 @@ if __name__ == "__main__":
     # # output_level = [0.1,0.1,0.1,0.1,0.1,0.1]
     frame_id = 0
 
-    # frame_queue = Queue(maxsize=100)
-
-    # th = threading.Thread(target=capture_loop, args=(sidecamera, topcamera, frame_queue), daemon=True)
-    # th.start()
-    # p = Process(target=processing_loop, args=(frame_queue, tracker))
-    # p.start()
-
-    # try:
-    #     while True: time.sleep(0.5)
-    # finally: 
-    #     sidecamera.release()
-    #     topcamera.release()
-    #     tracker.data_saver_finalize(videosave_dir, fps=fps)
-    #     tracker.video_saver_finalize(videosave_dir, fps=fps, resolution=(1600,1200))
     is_first_frame = True
     time.sleep(1) # wait for camera to be ready
     start = time.time()
@@ -564,6 +550,8 @@ if __name__ == "__main__":
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
             end = time.time()
+            current_time = end - start
+
     finally:
         effective_fps = frame_id / int(end - start)
         print(f'processing time; {int(end-start)}, fps: {effective_fps}')

@@ -62,7 +62,7 @@ if __name__ == "__main__":
     frame_id = 0
  
     is_first_frame = True
-    time.sleep(2) # wait for camera to be ready
+    time.sleep(1) # wait for camera to be ready
     controller = Interface()
     start = time.time()
 
@@ -74,7 +74,9 @@ if __name__ == "__main__":
             if not (ret1 and ret2):
                 print('missed frame!')
                 break
-            output_level = [0.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+            output_level = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            for i in range(len(controller.output_levels)):
+                controller.output_levels[i] = output_level[i]
             # output_level = np.array(output_level)
             tracker.processing_frame(frame_id, frame_side, frame_top, is_first_frame, True, output_level)
             controller.apply_DR(retry=True)
