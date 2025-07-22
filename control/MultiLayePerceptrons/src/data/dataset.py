@@ -8,11 +8,6 @@ import torch
 
 # angle_based
 class AngleDataset(Dataset): # Load initial angles, final angles, and dutyratios from summary.csv
-    def __init__(self, root_dir: str, split: str, transform=None):
-        super().__init__()
-        self.root_dir = root_dir
-        
-
     def __init__(self, csv_path, noise_std = 1.0):
         """
         Args:
