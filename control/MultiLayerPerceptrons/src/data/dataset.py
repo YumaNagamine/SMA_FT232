@@ -19,7 +19,7 @@ class AngleDataset(Dataset): # Load initial angles, final angles, and dutyratios
         for i in range(len(self.df) -1 ):
             if self.df.loc[i, 'state'] == 'initial' and self.df.loc[i+1, 'state']== 'final':
                 angles_init = self.df.loc[i, ['angle0', 'angle1', 'angle2', 'angle_top']].values.astype(float)
-                angles_final = self.df.loc[i+1, ['angel0', 'angle1', 'angle2', 'angle_top']].values.astype(float)
+                angles_final = self.df.loc[i+1, ['angle0', 'angle1', 'angle2', 'angle_top']].values.astype(float)
                 x = torch.tensor(
                     list(angles_init) + list(angles_final), dtype=torch.float32
                 )

@@ -8,3 +8,5 @@ __pycache__
 /checkpoints/*.pt
 control/DRL/data/
 control/DRL/models/*.pt
+
+control/MultiLayerPerceptrons/checkpoints/*.pth
