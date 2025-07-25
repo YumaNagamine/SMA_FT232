@@ -17,7 +17,7 @@ def main():
     epochs = 50
     learning_rate = 1e-3
     val_split = 0.2
-    dataset = AngleDataset(csv_file_path, noise_std=0.5)
+    dataset = AngleDataset(csv_file_path, noise_std=0.0)
     n_total = len(dataset)
     n_val = int(n_total * val_split)
     n_train = n_total - n_val
