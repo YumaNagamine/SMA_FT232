@@ -188,13 +188,13 @@ class Camera(VideoCapture):
         print("-" * 50, "\n")
 
 
-    def realtime(self): #Refined in 250519
+    def realtime(self, resolution: tuple, target_fps:int): #Refined in 250519
         is_lighting = True
         is_record_video = True
         cam_name = 'AR0234'
         if cam_name == 'AR0234': # Aptina AR0234
-            target_fps = 60
-            resolution = (1920,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
+            # target_fps = 60
+            # resolution = (1920,1200)#(1920,1200)#q(800,600)# (800,600)#(1920,1200) (1280,720)#
             # width, height = resolution
             # # Usage example:
             # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)

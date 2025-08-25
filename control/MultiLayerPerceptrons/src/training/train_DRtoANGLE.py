@@ -2,13 +2,13 @@ import yaml
 import torch
 from torch.utils.data import DataLoader, Dataset, random_split
 import torch.nn as nn
-from control.MultiLayerPerceptrons.src.data.dataset import AngleToDutyratioDataset
-from control.MultiLayerPerceptrons.models.AngleNet import AngleNet
+from control.MultiLayerPerceptrons.src.data.dataset import DutyratioToAngleDataset
+from control.MultiLayerPerceptrons.models.AngleNet import DutyRatioNet
 from control.MultiLayerPerceptrons.src.utils.logger import setup_logger
 from control.MultiLayerPerceptrons.src.utils.metrics import mse_loss
 import torch.optim as optim
 
-# training input; initial and final angle, output; duty ratios
+# training input; duty ratios , output; 
 def main():
     with open("./control/MultiLayerPerceptrons/configs/configs.yaml", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
@@ -17,7 +17,7 @@ def main():
     epochs = 50
     learning_rate = 1e-3
     val_split = 0.2
-    dataset = AngleToDutyratioDataset(csv_file_path, noise_std=0.0)
+    dataset = DutyratioToAngleDataset(csv_file_path, noise_std=0.0)
     n_total = len(dataset)
     n_val = int(n_total * val_split)
     n_train = n_total - n_val
@@ -25,9 +25,9 @@ def main():
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False)
 
-    model = AngleNet(input_dim=cfg['model1']['input_dim'], 
-                     output_dim=cfg['model1']['output_dim'], 
-                     hidden_layer_size=[32, 16])
+    model = DutyRatioNet(input_dim=cfg['model2']['input_dim'], 
+                     output_dim=cfg['model2']['output_dim'], 
+                     hidden_layer_size=[128, 64, 32])
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     for epoch in range(1, epochs+1):
@@ -57,7 +57,7 @@ def main():
             'optimizer_state_dict': optimizer.state_dict(),
             'train_loss': train_loss,
             'val_loss': val_loss
-        }, f'./control/MultiLayerPerceptrons/checkpoints/model_epoch_{epoch}.pth'
+        }, f'./control/MultiLayerPerceptrons/checkpoints_DRtoAngle/model_epoch_{epoch}.pth'
         )
 
         print(f"Epoch {epoch:2d}/{epochs} "
@@ -69,6 +69,6 @@ def main():
 if __name__ == "__main__":
     import os, time
     start = time.time()
-    os.makedirs("./control/MultiLayerPerceptrons/checkpoints", exist_ok=True)
+    os.makedirs("./control/MultiLayerPerceptrons/checkpoints_DRtoAngle", exist_ok=True)
     main()
     print(f"time: {(time.time() - start)/60} mins")

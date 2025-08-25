@@ -5,6 +5,7 @@ sc01/
 .pyc
 __pycache__
 .pt
+*.pth
 *.csv
 /checkpoints/*.pt
 control/DRL/data/

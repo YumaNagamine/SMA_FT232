@@ -4,14 +4,17 @@ dataset:
   batch size:
   num_workers: 
 
-model:
+model1:
   name: "AnglesInput"
   pretrained: true
   num_classes: 2
   input_dim: 8
   output_dim: 6
   
-
+model2:
+  name: "DutyratioInput"
+  input_dim: 10
+  output_dim: 4
 
 training:
   optimizer:

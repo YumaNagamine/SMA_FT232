@@ -218,7 +218,10 @@ class AngleTracking:
                 traceback.print_exc()
                 continue
         # Calculate angles based on extracted marker points
+        # if resolution == (1920,1200)
         self._estimate_joint(processed_markerset_per_frame)
+        # if resolution == (800,600)
+        self._estimate_joint(processed_markerset_per_frame, shifters=[7,z])
         cv2.circle(frame, center=self.fingertip, radius=10, color = [0,255,0], thickness=-1)
         cv2.circle(frame, center=self.DIP, radius=10, color = [0,255,0], thickness=-1)
         cv2.circle(frame, center=self.PIP, radius=10, color = [0,255,0], thickness=-1)
@@ -243,10 +246,18 @@ class AngleTracking:
             traceback.print_exc()
             angle_2 = []
 
-        _text_pos_x = 100
-        frame = self._add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
-        frame = self._add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
-        frame = self._add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+        # _text_pos_x = 100 # resolution = (1920,1200)
+        _text_pos_x = 30 # resolution = (800,600)
+
+        # if resolution = (1920,1200)
+        # frame = self._add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 210), font_scale=1, thickness=2, color=(255, 255, 0))
+        # frame = self._add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 240), font_scale=1, thickness=2, color=(255, 255, 0))
+        # frame = self._add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 270), font_scale=1, thickness=2, color=(255, 255, 0))
+
+        # if resolution = (800,600)
+        frame = self._add_text_to_frame(frame, "ANGLE 0: {}".format(angle_0), position=(_text_pos_x, 50), font_scale=0.5, thickness=2, color=(255, 255, 0))
+        frame = self._add_text_to_frame(frame, "ANGLE 1: {}".format(angle_1), position=(_text_pos_x, 80), font_scale=0.5, thickness=2, color=(255, 255, 0))
+        frame = self._add_text_to_frame(frame, "ANGLE 2: {}".format(angle_2), position=(_text_pos_x, 110), font_scale=0.5, thickness=2, color=(255, 255, 0))
         return frame, angle_0, angle_1, angle_2, markerset_per_frame, processed_markerset_per_frame
 
     def _extract_angle_top(self, frame, MCP_point:list):
@@ -298,12 +309,18 @@ class AngleTracking:
             cv2.line(frame, MCP_point, fingertip_pos, color=(0,255,0), thickness=3)
             cv2.line(frame, MCP_point, (MCP_point[0]-1200, MCP_point[1]), color=(255,255,0), thickness=3)
 
-            frame = self._add_text_to_frame(frame, "ANGLE: {}".format(angle), position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
-                     
+            # if resolution = (1920,1200)
+            # frame = self._add_text_to_frame(frame, "ANGLE: {}".format(angle), position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
+
+            # if resolution = (800,600)             
+            frame = self._add_text_to_frame(frame, "ANGLE: {}".format(angle), position=(30,50), font_scale=0.5, thickness=2, color=(255,255,0))
 
             return  frame, angle, markerpos_per_frame, fingertip_per_frame
         except Exception as e:
-            frame = self._add_text_to_frame(frame, "ANGLE: []", position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
+            # if resolution = (1920,1200)
+            # frame = self._add_text_to_frame(frame, "ANGLE: []", position=(100,210), font_scale=1, thickness=2, color=(255,255,0))
+            # if resolution = (800,600)
+            frame = self._add_text_to_frame(frame, "ANGLE: []", position=(30,50), font_scale=0.5, thickness=2, color=(255,255,0))
             print("Unknown error occurres in extract_angle_top\n")
             import traceback
             traceback.print_exc()
